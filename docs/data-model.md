@@ -1,0 +1,41 @@
+# 数据模型
+
+## 1. 资源
+
+字段：
+
+- `id`
+- `title`
+- `slug`
+- `summary`
+- `category`
+- `tags[]`
+- `cover`
+- `quark_url`
+- `extract_code`
+- `publish_status`
+- `published_at`
+- `updated_at`
+
+## 2. 事件
+
+字段：
+
+- `name`
+- `event_time`
+- `session_id`
+- `anon_user_id`
+- `query`
+- `resource_id`
+- `result_rank`
+- `result_count`
+- `from_page`
+- `referer`
+- `device`
+- `ua`
+
+## 3. 说明
+
+- 资源存储在 `data/resources.json`
+- 行为事件存储在 `data/events.jsonl`
+- 当前为单机文件实现，适合原型和自部署初版
