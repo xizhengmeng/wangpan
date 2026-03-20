@@ -1,33 +1,43 @@
 import Link from "next/link";
 import { PropsWithChildren } from "react";
 
+import { SearchBox } from "@/components/SearchBox";
+
 export function Layout({ children }: PropsWithChildren) {
   return (
     <div className="shell">
       <header className="site-header">
-        <div className="container site-header__inner">
+        <div className="site-header__inner">
           <Link className="brand" href="/">
-            <strong>夸克资料搜索站</strong>
-            <span>面向中文搜索流量的资料检索站</span>
+            <span className="brand-icon">夸</span>
+            <strong>夸克资料站</strong>
           </Link>
 
           <nav className="nav" aria-label="主导航">
-            <Link href="/">首页</Link>
-            <Link href="/search?q=考研">热门搜索</Link>
-            <Link href="/category/%E8%80%83%E8%AF%95%E8%B5%84%E6%96%99">考试资料</Link>
-            <Link href="/category/%E6%A8%A1%E6%9D%BF%E7%B4%A0%E6%9D%90">模板素材</Link>
-            <Link href="/admin/resources">后台</Link>
+            <Link href="/" className="nav-link active">首页</Link>
+            <Link href="/search?q=" className="nav-link">发现</Link>
+            <Link href="/search?q=考试资料" className="nav-link">考试</Link>
+            <Link href="/search?q=模板" className="nav-link">模板</Link>
+            <Link href="/search?q=AI" className="nav-link">AI 资料</Link>
           </nav>
+
+          <div className="header-search">
+            <SearchBox compact />
+          </div>
+
+          <Link href="/admin/resources" className="btn-admin">后台</Link>
         </div>
       </header>
 
       <main>{children}</main>
 
       <footer className="site-footer">
-        <div className="container site-footer__inner">
-          <p>SEO 资料站基础版，支持搜索、二跳统计、资源后台和 CSV 导入。</p>
+        <div className="site-footer__inner">
+          <p>夸克资料站 · 搜索驱动更新</p>
           <p>
             <Link href="/sitemap.xml">Sitemap</Link>
+            <span className="footer-sep">·</span>
+            <Link href="/admin/resources">后台管理</Link>
           </p>
         </div>
       </footer>

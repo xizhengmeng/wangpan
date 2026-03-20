@@ -5,9 +5,10 @@ import { useRouter } from "next/router";
 
 interface SearchBoxProps {
   initialQuery?: string;
+  compact?: boolean;
 }
 
-export function SearchBox({ initialQuery = "" }: SearchBoxProps) {
+export function SearchBox({ initialQuery = "", compact = false }: SearchBoxProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
 
@@ -22,14 +23,14 @@ export function SearchBox({ initialQuery = "" }: SearchBoxProps) {
   }
 
   return (
-    <form className="search-form" onSubmit={handleSubmit}>
+    <form className={compact ? "search-form-compact" : "search-form"} onSubmit={handleSubmit}>
       <input
         aria-label="搜索资料"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="输入关键词，例如：考研数学、PPT 模板、Python"
+        placeholder={compact ? "搜索..." : "输入关键词，例如：考研数学、PPT 模板、Python"}
       />
-      <button type="submit">开始搜索</button>
+      <button type="submit">{compact ? "搜" : "开始搜索"}</button>
     </form>
   );
 }
