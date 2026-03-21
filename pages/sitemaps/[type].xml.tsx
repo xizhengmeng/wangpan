@@ -1,7 +1,7 @@
 import { GetServerSideProps } from "next";
 
 import { absoluteUrl } from "@/lib/site";
-import { getCategoryMap, getPublishedResources, getTagMap } from "@/lib/store";
+import { getCategoryMap, getContentStructure, getPublishedResources, getTagMap } from "@/lib/store";
 
 export default function SitemapFile() {
   return null;
@@ -20,8 +20,18 @@ export const getServerSideProps: GetServerSideProps = async ({ params, res }) =>
 
   if (type === "resources") {
     urls = (await getPublishedResources()).map((resource) => absoluteUrl(`/resource/${resource.slug}`));
+  } else if (type === "channels") {
+    const structure = await getContentStructure();
+    urls = structure.channels
+      .filter((ch) => ch.status === "active")
+      .map((ch) => absoluteUrl(`/channel/${ch.slug}`));
   } else if (type === "categories") {
     urls = (await getCategoryMap()).map((category) => absoluteUrl(`/category/${category.slug}`));
+  } else if (type === "topics") {
+    const structure = await getContentStructure();
+    urls = structure.topics
+      .filter((t) => t.status === "active")
+      .map((t) => absoluteUrl(`/topic/${t.slug}`));
   } else if (type === "tags") {
     urls = (await getTagMap()).map((tag) => absoluteUrl(`/tag/${tag.slug}`));
   } else {

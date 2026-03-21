@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState, PropsWithChildren } from "react";
+import { useEffect, useMemo, useRef, useState, PropsWithChildren } from "react";
 import { useRouter } from "next/router";
 
 import { ContentStructure } from "@/lib/types";
@@ -7,6 +7,7 @@ import { ContentStructure } from "@/lib/types";
 interface NavChildItem {
   label: string;
   href: string;
+  meta?: string[];
 }
 
 interface NavItem {
@@ -14,12 +15,15 @@ interface NavItem {
   label: string;
   href: string;
   children?: NavChildItem[];
+  variant?: "links" | "cards";
 }
 
 export function Layout({ children }: PropsWithChildren) {
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [structure, setStructure] = useState<ContentStructure | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -51,9 +55,35 @@ export function Layout({ children }: PropsWithChildren) {
       return [{ key: "home", label: "首页", href: "/" }] as NavItem[];
     }
 
+    const preferredPrimarySlugs = [
+      "education-exam",
+      "skill-growth",
+      "language-learning",
+      "software-tools",
+    ];
+    const shortLabels: Record<string, string> = {
+      "education-exam": "考试",
+      "skill-growth": "技能",
+      "language-learning": "语言",
+      "software-tools": "工具",
+    };
+
     const activeChannels = [...structure.channels]
       .filter((channel) => channel.status === "active")
       .sort((a, b) => {
+        const preferredDelta =
+          preferredPrimarySlugs.indexOf(a.slug) === -1
+            ? 999
+            : preferredPrimarySlugs.indexOf(a.slug);
+        const preferredCompare =
+          preferredPrimarySlugs.indexOf(b.slug) === -1
+            ? 999
+            : preferredPrimarySlugs.indexOf(b.slug);
+
+        if (preferredDelta !== preferredCompare) {
+          return preferredDelta - preferredCompare;
+        }
+
         const featuredDelta = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
         if (featuredDelta !== 0) {
           return featuredDelta;
@@ -62,8 +92,8 @@ export function Layout({ children }: PropsWithChildren) {
         return a.sort - b.sort;
       });
 
-    const primaryChannels = activeChannels.slice(0, 5);
-    const overflowChannels = activeChannels.slice(5);
+    const primaryChannels = activeChannels.slice(0, 4);
+    const overflowChannels = activeChannels.slice(4);
 
     const channelItems: NavItem[] = primaryChannels.map((channel) => {
       const categories = structure.categories
@@ -77,9 +107,10 @@ export function Layout({ children }: PropsWithChildren) {
 
       return {
         key: channel.id,
-        label: channel.name,
+        label: shortLabels[channel.slug] || channel.name,
         href: `/channel/${channel.slug}`,
-        children: categories
+        children: categories,
+        variant: "links",
       };
     });
 
@@ -92,8 +123,14 @@ export function Layout({ children }: PropsWithChildren) {
         href: "/search?q=",
         children: overflowChannels.map((channel) => ({
           label: channel.name,
-          href: `/channel/${channel.slug}`
-        }))
+          href: `/channel/${channel.slug}`,
+          meta: structure.categories
+            .filter((category) => category.channel_id === channel.id && category.status === "active")
+            .sort((a, b) => a.sort - b.sort)
+            .slice(0, 3)
+            .map((category) => category.name),
+        })),
+        variant: "cards",
       });
     }
 
@@ -102,7 +139,36 @@ export function Layout({ children }: PropsWithChildren) {
 
   useEffect(() => {
     setOpenMenu(null);
+    setMobileNavOpen(false);
   }, [router.asPath]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function openHoverMenu(key: string) {
+    clearCloseTimer();
+    setOpenMenu(key);
+  }
+
+  function scheduleCloseMenu(key: string) {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpenMenu((current) => (current === key ? null : current));
+      closeTimerRef.current = null;
+    }, 180);
+  }
 
   function isItemActive(item: NavItem) {
     if (item.href === "/") {
@@ -125,7 +191,27 @@ export function Layout({ children }: PropsWithChildren) {
             <strong>夸克资料站</strong>
           </Link>
 
-          <nav className="nav" aria-label="主导航">
+          <div className="header-search">
+            <Link href="/search?q=" className="header-search-btn">
+              搜索
+            </Link>
+            <button
+              type="button"
+              className={`mobile-nav-btn${mobileNavOpen ? " mobile-nav-btn--active" : ""}`}
+              aria-label="切换导航菜单"
+              aria-expanded={mobileNavOpen}
+              onClick={() => {
+                setMobileNavOpen((current) => !current);
+                setOpenMenu(null);
+              }}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
+
+          <nav className={`nav${mobileNavOpen ? " nav--mobile-open" : ""}`} aria-label="主导航">
             {navItems.map((item) => {
               const hasChildren = Boolean(item.children?.length);
               const isOpen = openMenu === item.key;
@@ -143,13 +229,13 @@ export function Layout({ children }: PropsWithChildren) {
                     .join(" ")}
                   key={item.key}
                   onMouseEnter={() => {
-                    if (hasChildren) {
-                      setOpenMenu(item.key);
+                    if (hasChildren && !mobileNavOpen) {
+                      openHoverMenu(item.key);
                     }
                   }}
                   onMouseLeave={() => {
-                    if (hasChildren) {
-                      setOpenMenu((current) => (current === item.key ? null : current));
+                    if (hasChildren && !mobileNavOpen) {
+                      scheduleCloseMenu(item.key);
                     }
                   }}
                 >
@@ -174,10 +260,21 @@ export function Layout({ children }: PropsWithChildren) {
                   </div>
 
                   {hasChildren ? (
-                    <div className="nav-submenu">
+                    <div className={`nav-submenu${item.variant === "cards" ? " nav-submenu--cards" : ""}`}>
                       {item.children?.map((child) => (
-                        <Link className="nav-submenu__link" href={child.href} key={child.href}>
+                        <Link
+                          className={`nav-submenu__link${item.variant === "cards" ? " nav-submenu__link--card" : ""}`}
+                          href={child.href}
+                          key={child.href}
+                        >
                           <strong>{child.label}</strong>
+                          {item.variant === "cards" && child.meta?.length ? (
+                            <div className="nav-submenu__meta">
+                              {child.meta.map((metaItem) => (
+                                <span key={metaItem}>{metaItem}</span>
+                              ))}
+                            </div>
+                          ) : null}
                         </Link>
                       ))}
                     </div>
@@ -186,12 +283,6 @@ export function Layout({ children }: PropsWithChildren) {
               );
             })}
           </nav>
-
-          <div className="header-search">
-            <Link href="/search?q=" className="header-search-btn">
-              搜索
-            </Link>
-          </div>
         </div>
       </header>
 

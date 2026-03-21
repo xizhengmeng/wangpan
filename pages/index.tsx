@@ -94,7 +94,7 @@ export default function Home({
         <section className="home-v4-search">
           <div className="home-v4-search__top">
             <span className="home-v4-search__eyebrow">资料检索入口</span>
-            <h1>搜你要的资料</h1>
+            <h1>夸克网盘资料</h1>
             <p>
               课程、考试、模板、软件与整理专题，先用关键词定位，再进入频道或专题继续筛选。
             </p>

@@ -2,22 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { ChangeEvent, FormEvent, useMemo, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
-import { Feedback, Resource } from "@/lib/types";
+import { AnalyticsPeriod, AnalyticsPeriodPoint } from "@/lib/analytics";
+import { CategoryNode, Channel, Feedback, Resource, TopicNode } from "@/lib/types";
 
-type Tab = "dashboard" | "resources" | "form" | "import" | "feedback";
+type Tab = "dashboard" | "resources" | "form" | "import" | "feedback" | "structure";
+type StructurePanel = null | "channel" | "category" | "topic";
 
-interface TopResource { resourceId: string; title: string; slug: string; count: number }
-interface LowConversionResource { resourceId: string; title: string; slug: string; detailViews: number; downloads: number }
+interface RankedResource { resourceId: string; title: string; slug: string; count: number }
+
+interface DashboardPeriodData {
+  label: string;
+  rangeLabel: string;
+  granularityLabel: string;
+  visits: number;
+  searches: number;
+  clicks: number;
+  downloads: number;
+  visitChange: number;
+  searchChange: number;
+  clickChange: number;
+  downloadChange: number;
+  points: AnalyticsPeriodPoint[];
+  topQueries: Array<{ query: string; count: number }>;
+  topClickedResources: RankedResource[];
+  topDownloadedResources: RankedResource[];
+}
 
 interface AdminResourcesClientProps {
   initialResources: Resource[];
-  metrics: Array<{ label: string; value: string }>;
-  topQueries: Array<{ query: string; count: number }>;
-  noResultQueries: Array<{ query: string; count: number }>;
-  topResources: TopResource[];
-  lowConversionResources: LowConversionResource[];
+  overviewMetrics: Array<{ label: string; value: string }>;
+  dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
   initialFeedback: Feedback[];
 }
 
@@ -38,7 +54,7 @@ const FEEDBACK_REASON_LABELS: Record<string, string> = {
   other: "其他",
 };
 
-const emptyForm = {
+const emptyResForm = {
   id: "",
   title: "",
   slug: "",
@@ -52,25 +68,129 @@ const emptyForm = {
   published_at: new Date().toISOString().slice(0, 16),
 };
 
+const emptyChannelForm = { id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
+const emptyCategoryForm = { id: "", channel_id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
+const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
+
+function formatDelta(value: number) {
+  if (value === 0) {
+    return "与上一周期持平";
+  }
+
+  return `${value > 0 ? "+" : ""}${value}%`;
+}
+
+function buildLinePath(values: number[], width: number, height: number, maxValue: number) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const safeMax = Math.max(maxValue, 1);
+  const stepX = values.length === 1 ? 0 : width / (values.length - 1);
+
+  return values
+    .map((value, index) => {
+      const x = Number((index * stepX).toFixed(2));
+      const y = Number((height - (value / safeMax) * height).toFixed(2));
+      return `${index === 0 ? "M" : "L"}${x} ${y}`;
+    })
+    .join(" ");
+}
+
+function buildAreaPath(values: number[], width: number, height: number, maxValue: number) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const linePath = buildLinePath(values, width, height, maxValue);
+  const firstX = 0;
+  const lastX = values.length === 1 ? 0 : width;
+  return `${linePath} L${lastX} ${height} L${firstX} ${height} Z`;
+}
+
+function DashboardChart({ points }: { points: AnalyticsPeriodPoint[] }) {
+  const width = 720;
+  const height = 240;
+  const maxValue = Math.max(
+    1,
+    ...points.flatMap((point) => [point.visits, point.clicks, point.downloads])
+  );
+  const visits = points.map((point) => point.visits);
+  const clicks = points.map((point) => point.clicks);
+  const downloads = points.map((point) => point.downloads);
+
+  return (
+    <div className="admin-chart">
+      <div className="admin-chart__legend">
+        <span><i style={{ "--legend-color": "#2563eb" } as React.CSSProperties} />访问</span>
+        <span><i style={{ "--legend-color": "#14b8a6" } as React.CSSProperties} />点击</span>
+        <span><i style={{ "--legend-color": "#f59e0b" } as React.CSSProperties} />下载</span>
+      </div>
+      <div className="admin-chart__canvas">
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+          {[0, 1, 2, 3].map((step) => {
+            const y = (height / 3) * step;
+            return <line key={step} x1="0" y1={y} x2={width} y2={y} className="admin-chart__grid" />;
+          })}
+          <path d={buildAreaPath(visits, width, height, maxValue)} className="admin-chart__area" />
+          <path d={buildLinePath(visits, width, height, maxValue)} className="admin-chart__line admin-chart__line--visits" />
+          <path d={buildLinePath(clicks, width, height, maxValue)} className="admin-chart__line admin-chart__line--clicks" />
+          <path d={buildLinePath(downloads, width, height, maxValue)} className="admin-chart__line admin-chart__line--downloads" />
+        </svg>
+      </div>
+      <div className="admin-chart__axis">
+        {points.map((point) => (
+          <span key={point.key}>{point.shortLabel}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AdminResourcesClient({
   initialResources,
-  metrics,
-  topQueries,
-  noResultQueries,
-  topResources,
-  lowConversionResources,
+  overviewMetrics,
+  dashboardPeriods,
   initialFeedback,
 }: AdminResourcesClientProps) {
   const [tab, setTab] = useState<Tab>("dashboard");
+  const [dashboardPeriod, setDashboardPeriod] = useState<AnalyticsPeriod>("week");
+  const [structurePanel, setStructurePanel] = useState<StructurePanel>(null);
   const router = useRouter();
   const [resources, setResources] = useState(initialResources);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyResForm);
   const [csv, setCsv] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [statusFilter, setStatusFilter] = useState("all");
   const [titleSearch, setTitleSearch] = useState("");
   const [feedback, setFeedback] = useState(initialFeedback);
+
+  /* ── Structure state ── */
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [topics, setTopics] = useState<TopicNode[]>([]);
+  const [structureLoaded, setStructureLoaded] = useState(false);
+  const [channelForm, setChannelForm] = useState(emptyChannelForm);
+  const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
+  const [topicForm, setTopicForm] = useState(emptyTopicForm);
+
+  /* ── Load structure when tab is opened ── */
+  const loadStructure = useCallback(async () => {
+    const res = await fetch("/api/admin/structure");
+    if (!res.ok) return;
+    const data = await res.json() as { channels: Channel[]; categories: CategoryNode[]; topics: TopicNode[] };
+    setChannels(data.channels);
+    setCategories(data.categories);
+    setTopics(data.topics);
+    setStructureLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (tab === "structure" && !structureLoaded) {
+      void loadStructure();
+    }
+  }, [tab, structureLoaded, loadStructure]);
 
   const sortedResources = useMemo(
     () =>
@@ -87,6 +207,18 @@ export function AdminResourcesClient({
       return true;
     });
   }, [sortedResources, statusFilter, titleSearch]);
+
+  const currentDashboard = dashboardPeriods[dashboardPeriod];
+  const dashboardMetricCards = useMemo(
+    () => [
+      ...overviewMetrics.slice(0, 2),
+      { label: `${currentDashboard.rangeLabel}访问量`, value: String(currentDashboard.visits), delta: currentDashboard.visitChange },
+      { label: `${currentDashboard.rangeLabel}搜索量`, value: String(currentDashboard.searches), delta: currentDashboard.searchChange },
+      { label: `${currentDashboard.rangeLabel}点击量`, value: String(currentDashboard.clicks), delta: currentDashboard.clickChange },
+      { label: `${currentDashboard.rangeLabel}下载量`, value: String(currentDashboard.downloads), delta: currentDashboard.downloadChange },
+    ],
+    [currentDashboard, overviewMetrics]
+  );
 
   function notify(type: "ok" | "err", text: string) {
     setMessage({ type, text });
@@ -136,7 +268,7 @@ export function AdminResourcesClient({
       const data = await res.json();
       if (!res.ok) { notify("err", data.error || "保存失败"); return; }
       await refreshResources();
-      setForm(emptyForm);
+      setForm(emptyResForm);
       notify("ok", form.id ? "资源已更新" : "资源已新增");
       setTab("resources");
     });
@@ -195,6 +327,26 @@ export function AdminResourcesClient({
     router.replace("/admin/login");
   }
 
+  /* ── Structure handlers ── */
+  async function handleSaveStructure(type: "channel" | "category" | "topic", data: Record<string, unknown>) {
+    const res = await fetch("/api/admin/structure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, ...data }),
+    });
+    if (!res.ok) { notify("err", "保存失败"); return; }
+    notify("ok", "保存成功");
+    await loadStructure();
+  }
+
+  async function handleDeleteStructure(type: "channel" | "category" | "topic", id: string) {
+    if (!confirm("确认删除？关联的子项也会被一并删除。")) return;
+    const res = await fetch(`/api/admin/structure?type=${type}&id=${id}`, { method: "DELETE" });
+    if (!res.ok) { notify("err", "删除失败"); return; }
+    notify("ok", "已删除");
+    await loadStructure();
+  }
+
   async function handleResolveFeedback(id: string) {
     const res = await fetch("/api/admin/feedback", {
       method: "PATCH",
@@ -205,112 +357,168 @@ export function AdminResourcesClient({
     setFeedback((prev) => prev.map((f) => f.id === id ? { ...f, resolved: true } : f));
   }
 
-  const TABS: { key: Tab; label: string; badge?: number }[] = [
-    { key: "dashboard", label: "📊 统计看板" },
-    { key: "resources", label: "📦 资源管理", badge: resources.length },
-    { key: "form", label: form.id ? "✏️ 编辑资源" : "➕ 新增资源" },
-    { key: "import", label: "📤 批量导入" },
-    { key: "feedback", label: "🚨 失效反馈", badge: feedback.filter((f) => !f.resolved).length },
+  const TABS: { key: Tab; label: string; icon: string; badge?: number }[] = [
+    { key: "dashboard", label: "统计看板", icon: "📊" },
+    { key: "resources", label: "资源管理", icon: "📦", badge: resources.length },
+    { key: "form", label: form.id ? "编辑资源" : "新增资源", icon: form.id ? "✏️" : "➕" },
+    { key: "import", label: "批量导入", icon: "📤" },
+    { key: "structure", label: "导航与分类", icon: "🗂" },
+    { key: "feedback", label: "失效反馈", icon: "🚨", badge: feedback.filter((f) => !f.resolved).length },
   ];
 
   return (
-    <div className="admin-shell">
-      {/* Header */}
-      <div className="admin-header">
-        <div className="admin-header__inner">
-          <div>
-            <h1 className="admin-header__title">运营后台</h1>
-            <p className="admin-header__sub">资源管理 · 统计看板 · 失效反馈</p>
-          </div>
-          <div className="admin-header__actions">
-            <Link href="/" className="admin-header__back">← 回到前台</Link>
-            <button type="button" className="adm-btn adm-btn--sm" onClick={handleLogout}>退出登录</button>
-          </div>
+    <div className="adm-layout">
+      {/* ── Left sidebar ── */}
+      <aside className="adm-sidebar">
+        <div className="adm-sidebar__brand">
+          <Link href="/" className="adm-sidebar__logo">夸克资料站</Link>
+          <p className="adm-sidebar__sub">运营后台</p>
         </div>
 
-        {/* Tab nav */}
-        <div className="admin-tabs">
+        <nav className="adm-sidebar__nav">
           {TABS.map((t) => (
             <button
               key={t.key}
-              className={`admin-tab${tab === t.key ? " admin-tab--active" : ""}`}
-              onClick={() => setTab(t.key)}
               type="button"
+              className={`adm-nav-item${tab === t.key ? " adm-nav-item--active" : ""}`}
+              onClick={() => setTab(t.key)}
             >
-              {t.label}
+              <span className="adm-nav-item__icon">{t.icon}</span>
+              <span className="adm-nav-item__label">{t.label}</span>
               {t.badge !== undefined && t.badge > 0 && (
-                <span className="admin-tab__badge">{t.badge}</span>
+                <span className="adm-nav-item__badge">{t.badge}</span>
               )}
             </button>
           ))}
+        </nav>
+
+        <div className="adm-sidebar__footer">
+          <button type="button" className="adm-nav-item adm-nav-item--logout" onClick={handleLogout}>
+            <span className="adm-nav-item__icon">↩</span>
+            <span className="adm-nav-item__label">退出登录</span>
+          </button>
+          <Link href="/" className="adm-nav-item">
+            <span className="adm-nav-item__icon">🌐</span>
+            <span className="adm-nav-item__label">查看前台</span>
+          </Link>
         </div>
-      </div>
+      </aside>
 
-      {/* Toast */}
-      {message && (
-        <div className={`admin-toast admin-toast--${message.type}`}>{message.text}</div>
-      )}
+      {/* ── Main content ── */}
+      <main className="adm-main">
+        {/* Toast */}
+        {message && (
+          <div className={`admin-toast admin-toast--${message.type}`}>{message.text}</div>
+        )}
 
-      <div className="admin-body">
-        {/* ─── 统计看板 ─────────────────────────────── */}
+        {/* ─── 统计看板 ─────────────────────────── */}
         {tab === "dashboard" && (
-          <div className="admin-dashboard">
+          <div className="adm-page">
+            <div className="adm-page__head admin-dashboard__head">
+              <div>
+                <h1>统计看板</h1>
+                <p className="adm-page__desc">
+                  查看访问、搜索、点击和下载在不同周期下的变化。日视图按小时，周/月视图按天。
+                </p>
+              </div>
+              <div className="admin-period-switch">
+                {(["day", "week", "month"] as AnalyticsPeriod[]).map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    className={`admin-period-switch__btn${dashboardPeriod === period ? " admin-period-switch__btn--active" : ""}`}
+                    onClick={() => setDashboardPeriod(period)}
+                  >
+                    {period === "day" ? "天" : period === "week" ? "周" : "月"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="admin-metrics">
-              {metrics.map((m) => (
+              {dashboardMetricCards.map((m) => (
                 <div className="admin-metric-card" key={m.label}>
                   <strong>{m.value}</strong>
                   <span>{m.label}</span>
+                  {"delta" in m && typeof m.delta === "number" && (
+                    <em className={`admin-metric-card__delta${m.delta < 0 ? " admin-metric-card__delta--down" : ""}`}>
+                      {formatDelta(m.delta)}
+                    </em>
+                  )}
                 </div>
               ))}
             </div>
 
+            <div className="admin-panel admin-panel--wide">
+              <div className="admin-panel__title">
+                访问变化趋势
+                <small>{currentDashboard.rangeLabel} · {currentDashboard.granularityLabel}</small>
+              </div>
+              <div className="admin-trend">
+                <div className="admin-trend__summary">
+                  <div className="admin-trend__summary-item">
+                    <span>访问</span>
+                    <strong>{currentDashboard.visits}</strong>
+                    <small>{formatDelta(currentDashboard.visitChange)}</small>
+                  </div>
+                  <div className="admin-trend__summary-item">
+                    <span>点击</span>
+                    <strong>{currentDashboard.clicks}</strong>
+                    <small>{formatDelta(currentDashboard.clickChange)}</small>
+                  </div>
+                  <div className="admin-trend__summary-item">
+                    <span>下载</span>
+                    <strong>{currentDashboard.downloads}</strong>
+                    <small>{formatDelta(currentDashboard.downloadChange)}</small>
+                  </div>
+                </div>
+                <DashboardChart points={currentDashboard.points} />
+              </div>
+            </div>
+
             <div className="admin-dashboard__grid">
               <div className="admin-panel">
-                <div className="admin-panel__title">高频搜索词</div>
-                {topQueries.length > 0 ? topQueries.map((item) => (
+                <div className="admin-panel__title">搜索关键词排行 <small>{currentDashboard.rangeLabel}</small></div>
+                {currentDashboard.topQueries.length > 0 ? currentDashboard.topQueries.map((item, index) => (
                   <div className="admin-rank-row" key={item.query}>
+                    <span className="admin-rank-row__index">{index + 1}</span>
                     <span className="admin-rank-row__label">{item.query}</span>
-                    <span className="admin-rank-row__count">{item.count}</span>
+                    <span className="admin-rank-row__count">{item.count} 次</span>
                   </div>
-                )) : <p className="admin-empty">暂无数据</p>}
+                )) : <p className="admin-empty">当前周期暂无搜索数据</p>}
               </div>
 
               <div className="admin-panel">
-                <div className="admin-panel__title">无结果搜索词 <small>→ 需要补库</small></div>
-                {noResultQueries.length > 0 ? noResultQueries.map((item) => (
-                  <div className="admin-rank-row admin-rank-row--warn" key={item.query}>
-                    <span className="admin-rank-row__label">{item.query}</span>
-                    <span className="admin-rank-row__count">{item.count}</span>
-                  </div>
-                )) : <p className="admin-empty">暂无数据</p>}
-              </div>
-
-              <div className="admin-panel">
-                <div className="admin-panel__title">高点击资源排行</div>
-                {topResources.length > 0 ? topResources.map((item) => (
+                <div className="admin-panel__title">点击内容排行 <small>{currentDashboard.rangeLabel}</small></div>
+                {currentDashboard.topClickedResources.length > 0 ? currentDashboard.topClickedResources.map((item, index) => (
                   <div className="admin-rank-row" key={item.resourceId}>
+                    <span className="admin-rank-row__index">{index + 1}</span>
                     <Link href={`/resource/${item.slug}`} className="admin-rank-row__label admin-rank-row__link">{item.title}</Link>
                     <span className="admin-rank-row__count">{item.count} 次</span>
                   </div>
-                )) : <p className="admin-empty">暂无点击数据</p>}
+                )) : <p className="admin-empty">当前周期暂无点击数据</p>}
               </div>
 
               <div className="admin-panel">
-                <div className="admin-panel__title">高点击低转化 <small>→ 需优化下载入口</small></div>
-                {lowConversionResources.length > 0 ? lowConversionResources.map((item) => (
+                <div className="admin-panel__title">下载内容排行 <small>{currentDashboard.rangeLabel}</small></div>
+                {currentDashboard.topDownloadedResources.length > 0 ? currentDashboard.topDownloadedResources.map((item, index) => (
                   <div className="admin-rank-row" key={item.resourceId}>
+                    <span className="admin-rank-row__index">{index + 1}</span>
                     <Link href={`/resource/${item.slug}`} className="admin-rank-row__label admin-rank-row__link">{item.title}</Link>
-                    <span className="admin-rank-row__count">{item.detailViews}浏 / {item.downloads}下</span>
+                    <span className="admin-rank-row__count">{item.count} 次</span>
                   </div>
-                )) : <p className="admin-empty">暂无数据</p>}
+                )) : <p className="admin-empty">当前周期暂无下载数据</p>}
               </div>
             </div>
           </div>
         )}
 
-        {/* ─── 资源管理 ─────────────────────────────── */}
+        {/* ─── 资源管理 ─────────────────────────── */}
         {tab === "resources" && (
-          <div className="admin-resources">
+          <div className="adm-page">
+            <div className="adm-page__head">
+              <h1>资源管理</h1>
+              <button type="button" className="adm-btn adm-btn--primary" onClick={() => { setForm(emptyResForm); setTab("form"); }}>+ 新增资源</button>
+            </div>
             <div className="admin-filter-bar">
               <input
                 className="admin-filter-input"
@@ -375,7 +583,12 @@ export function AdminResourcesClient({
 
         {/* ─── 新增 / 编辑 ─────────────────────────── */}
         {tab === "form" && (
-          <div className="admin-form-wrap">
+          <div className="adm-page">
+            <div className="adm-page__head">
+              <h1>{form.id ? "编辑资源" : "新增资源"}</h1>
+              {form.id && <button className="adm-btn" type="button" onClick={() => { setForm(emptyResForm); setTab("resources"); }}>取消</button>}
+            </div>
+            <div className="admin-form-wrap">
             <form className="admin-form-grid" onSubmit={handleSubmit}>
               <div className="admin-form-section">
                 <h2 className="admin-form-section__title">基础信息</h2>
@@ -437,18 +650,18 @@ export function AdminResourcesClient({
                 <button className="adm-btn adm-btn--primary" disabled={isPending} type="submit">
                   {isPending ? "保存中..." : form.id ? "更新资源" : "新增资源"}
                 </button>
-                <button className="adm-btn" type="button" onClick={() => setForm(emptyForm)}>清空表单</button>
-                {form.id && (
-                  <button className="adm-btn" type="button" onClick={() => { setForm(emptyForm); setTab("resources"); }}>取消编辑</button>
-                )}
+                <button className="adm-btn" type="button" onClick={() => setForm(emptyResForm)}>清空表单</button>
               </div>
             </form>
+            </div>
           </div>
         )}
 
-        {/* ─── 批量导入 ─────────────────────────────── */}
+        {/* ─── 批量导入 ─────────────────────────── */}
         {tab === "import" && (
-          <div className="admin-import-wrap">
+          <div className="adm-page">
+            <div className="adm-page__head"><h1>批量导入</h1></div>
+            <div className="admin-import-wrap">
             <div className="admin-panel admin-panel--wide">
               <div className="admin-panel__title">CSV 批量导入</div>
               <p className="admin-import__desc">
@@ -469,14 +682,16 @@ export function AdminResourcesClient({
                 <button className="adm-btn" type="button" onClick={() => setCsv("")}>清空</button>
               </div>
             </div>
+            </div>
           </div>
         )}
 
-        {/* ─── 失效反馈 ─────────────────────────────── */}
+        {/* ─── 失效反馈 ─────────────────────────── */}
         {tab === "feedback" && (
-          <div className="admin-feedback">
-            <div className="admin-feedback__summary">
-              共 {feedback.length} 条，未处理 <strong>{feedback.filter((f) => !f.resolved).length}</strong> 条
+          <div className="adm-page">
+            <div className="adm-page__head">
+              <h1>失效反馈</h1>
+              <span className="adm-page__meta">共 {feedback.length} 条，未处理 <strong>{feedback.filter((f) => !f.resolved).length}</strong> 条</span>
             </div>
             <div className="admin-res-list">
               {feedback.length === 0 && <p className="admin-empty">暂无反馈记录</p>}
@@ -516,7 +731,258 @@ export function AdminResourcesClient({
             </div>
           </div>
         )}
-      </div>
+
+        {/* ─── 导航与分类 ─────────────────────── */}
+        {tab === "structure" && (
+          <div className="adm-page adm-page--wide">
+            <div className="adm-page__head">
+              <div>
+                <h1>导航与分类</h1>
+                <p className="adm-page__desc">频道 → 栏目 → 专题，三级从属结构</p>
+              </div>
+              <button type="button" className="adm-btn adm-btn--primary"
+                onClick={() => { setChannelForm(emptyChannelForm); setStructurePanel("channel"); }}>
+                + 新增频道
+              </button>
+            </div>
+
+            <div className="stree-layout">
+              {/* ── 左侧层级树 ── */}
+              <div className="stree">
+                {channels.length === 0 && (
+                  <div className="stree-empty">
+                    <p>还没有频道，点击右上角「+ 新增频道」开始创建</p>
+                  </div>
+                )}
+
+                {channels.map((ch) => {
+                  const chCats = categories.filter((c) => c.channel_id === ch.id);
+                  return (
+                    <div className="stree-channel" key={ch.id}>
+                      {/* 频道行 */}
+                      <div className="stree-row stree-row--channel">
+                        <span className="stree-row__icon">📡</span>
+                        <div className="stree-row__body">
+                          <span className="stree-row__name">{ch.name}</span>
+                          <span className="stree-row__slug">{ch.slug}</span>
+                          {ch.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+                          {ch.featured && <span className="stree-tag stree-tag--featured">精选</span>}
+                        </div>
+                        <div className="stree-row__actions">
+                          <button type="button" className="stree-action stree-action--add"
+                            title="新增栏目"
+                            onClick={() => {
+                              setCategoryForm({ ...emptyCategoryForm, channel_id: ch.id });
+                              setStructurePanel("category");
+                            }}>+ 栏目</button>
+                          <button type="button" className="stree-action"
+                            onClick={() => { setChannelForm({ id: ch.id, name: ch.name, slug: ch.slug, description: ch.description, sort_order: ch.sort, featured: ch.featured ?? false, status: ch.status }); setStructurePanel("channel"); }}>编辑</button>
+                          <button type="button" className="stree-action stree-action--del"
+                            onClick={() => handleDeleteStructure("channel", ch.id)}>删除</button>
+                        </div>
+                      </div>
+
+                      {/* 栏目行 */}
+                      {chCats.length === 0 && (
+                        <div className="stree-hint">暂无栏目，点击「+ 栏目」添加</div>
+                      )}
+                      {chCats.map((cat, catIdx) => {
+                        const catTopics = topics.filter((t) => t.category_id === cat.id);
+                        const isLastCat = catIdx === chCats.length - 1;
+                        return (
+                          <div className={`stree-cat-block${isLastCat ? " stree-cat-block--last" : ""}`} key={cat.id}>
+                            <div className="stree-row stree-row--category">
+                              <span className="stree-row__icon">📂</span>
+                              <div className="stree-row__body">
+                                <span className="stree-row__name">{cat.name}</span>
+                                <span className="stree-row__slug">{cat.slug}</span>
+                                {cat.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+                              </div>
+                              <div className="stree-row__actions">
+                                <button type="button" className="stree-action stree-action--add"
+                                  onClick={() => {
+                                    setTopicForm({ ...emptyTopicForm, category_id: cat.id });
+                                    setStructurePanel("topic");
+                                  }}>+ 专题</button>
+                                <button type="button" className="stree-action"
+                                  onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
+                                <button type="button" className="stree-action stree-action--del"
+                                  onClick={() => handleDeleteStructure("category", cat.id)}>删除</button>
+                              </div>
+                            </div>
+
+                            {/* 专题行 */}
+                            {catTopics.length === 0 && (
+                              <div className="stree-hint stree-hint--topic">暂无专题</div>
+                            )}
+                            {catTopics.map((topic, topicIdx) => {
+                              const isLastTopic = topicIdx === catTopics.length - 1;
+                              return (
+                                <div className={`stree-row stree-row--topic${isLastTopic ? " stree-row--last" : ""}`} key={topic.id}>
+                                  <span className="stree-row__icon">📄</span>
+                                  <div className="stree-row__body">
+                                    <span className="stree-row__name">{topic.name}</span>
+                                    <span className="stree-row__slug">{topic.slug}</span>
+                                    {topic.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+                                    {topic.featured && <span className="stree-tag stree-tag--featured">精选</span>}
+                                  </div>
+                                  <div className="stree-row__actions">
+                                    <button type="button" className="stree-action"
+                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status }); setStructurePanel("topic"); }}>编辑</button>
+                                    <button type="button" className="stree-action stree-action--del"
+                                      onClick={() => handleDeleteStructure("topic", topic.id)}>删除</button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── 右侧表单面板 ── */}
+              {structurePanel !== null && (
+                <div className="stree-panel">
+                  {structurePanel === "channel" && (
+                    <>
+                      <div className="stree-panel__head">
+                        <span className="stree-panel__icon">📡</span>
+                        <span className="stree-panel__title">{channelForm.id ? "编辑频道" : "新增频道"}</span>
+                        <button type="button" className="stree-panel__close" onClick={() => setStructurePanel(null)}>✕</button>
+                      </div>
+                      <form onSubmit={async (e) => { e.preventDefault(); await handleSaveStructure("channel", channelForm); setChannelForm(emptyChannelForm); setStructurePanel(null); }}>
+                        <div className="adm-field"><label>频道名称 *</label>
+                          <input required value={channelForm.name} onChange={(e) => setChannelForm((c) => ({ ...c, name: e.target.value }))} placeholder="如：教育考试" /></div>
+                        <div className="adm-field"><label>Slug *</label>
+                          <input required value={channelForm.slug} onChange={(e) => setChannelForm((c) => ({ ...c, slug: e.target.value }))} placeholder="education-exam" /></div>
+                        <div className="adm-field"><label>描述</label>
+                          <textarea value={channelForm.description} onChange={(e) => setChannelForm((c) => ({ ...c, description: e.target.value }))} rows={2} /></div>
+                        <div className="adm-field-row">
+                          <div className="adm-field"><label>排序</label>
+                            <input type="number" value={channelForm.sort_order} onChange={(e) => setChannelForm((c) => ({ ...c, sort_order: Number(e.target.value) }))} /></div>
+                          <div className="adm-field"><label>状态</label>
+                            <select value={channelForm.status} onChange={(e) => setChannelForm((c) => ({ ...c, status: e.target.value as "active" | "hidden" }))}>
+                              <option value="active">显示</option><option value="hidden">隐藏</option>
+                            </select></div>
+                        </div>
+                        <div className="adm-field adm-field--check"><label>
+                          <input type="checkbox" checked={channelForm.featured} onChange={(e) => setChannelForm((c) => ({ ...c, featured: e.target.checked }))} />
+                          设为精选频道（首页展示）
+                        </label></div>
+                        <div className="admin-form-actions">
+                          <button className="adm-btn adm-btn--primary" type="submit">保存</button>
+                          <button className="adm-btn" type="button" onClick={() => setStructurePanel(null)}>取消</button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+
+                  {structurePanel === "category" && (
+                    <>
+                      <div className="stree-panel__head">
+                        <span className="stree-panel__icon">📂</span>
+                        <span className="stree-panel__title">{categoryForm.id ? "编辑栏目" : "新增栏目"}</span>
+                        <button type="button" className="stree-panel__close" onClick={() => setStructurePanel(null)}>✕</button>
+                      </div>
+                      {categoryForm.channel_id && (
+                        <div className="stree-panel__breadcrumb">
+                          <span>📡 {channels.find((c) => c.id === categoryForm.channel_id)?.name || categoryForm.channel_id}</span>
+                          <span> → 栏目</span>
+                        </div>
+                      )}
+                      <form onSubmit={async (e) => { e.preventDefault(); await handleSaveStructure("category", categoryForm); setCategoryForm(emptyCategoryForm); setStructurePanel(null); }}>
+                        <div className="adm-field"><label>所属频道 *</label>
+                          <select required value={categoryForm.channel_id} onChange={(e) => setCategoryForm((c) => ({ ...c, channel_id: e.target.value }))}>
+                            <option value="">请选择频道</option>
+                            {channels.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+                          </select></div>
+                        <div className="adm-field"><label>栏目名称 *</label>
+                          <input required value={categoryForm.name} onChange={(e) => setCategoryForm((c) => ({ ...c, name: e.target.value }))} placeholder="如：考研资料" /></div>
+                        <div className="adm-field"><label>Slug *</label>
+                          <input required value={categoryForm.slug} onChange={(e) => setCategoryForm((c) => ({ ...c, slug: e.target.value }))} placeholder="kaoyan" /></div>
+                        <div className="adm-field"><label>描述</label>
+                          <textarea value={categoryForm.description} onChange={(e) => setCategoryForm((c) => ({ ...c, description: e.target.value }))} rows={2} /></div>
+                        <div className="adm-field-row">
+                          <div className="adm-field"><label>排序</label>
+                            <input type="number" value={categoryForm.sort_order} onChange={(e) => setCategoryForm((c) => ({ ...c, sort_order: Number(e.target.value) }))} /></div>
+                          <div className="adm-field"><label>状态</label>
+                            <select value={categoryForm.status} onChange={(e) => setCategoryForm((c) => ({ ...c, status: e.target.value as "active" | "hidden" }))}>
+                              <option value="active">显示</option><option value="hidden">隐藏</option>
+                            </select></div>
+                        </div>
+                        <div className="adm-field adm-field--check"><label>
+                          <input type="checkbox" checked={categoryForm.featured} onChange={(e) => setCategoryForm((c) => ({ ...c, featured: e.target.checked }))} />
+                          设为精选栏目
+                        </label></div>
+                        <div className="admin-form-actions">
+                          <button className="adm-btn adm-btn--primary" type="submit">保存</button>
+                          <button className="adm-btn" type="button" onClick={() => setStructurePanel(null)}>取消</button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+
+                  {structurePanel === "topic" && (
+                    <>
+                      <div className="stree-panel__head">
+                        <span className="stree-panel__icon">📄</span>
+                        <span className="stree-panel__title">{topicForm.id ? "编辑专题" : "新增专题"}</span>
+                        <button type="button" className="stree-panel__close" onClick={() => setStructurePanel(null)}>✕</button>
+                      </div>
+                      {topicForm.category_id && (() => {
+                        const cat = categories.find((c) => c.id === topicForm.category_id);
+                        const ch = channels.find((c) => c.id === cat?.channel_id);
+                        return (
+                          <div className="stree-panel__breadcrumb">
+                            {ch && <span>📡 {ch.name} → </span>}
+                            {cat && <span>📂 {cat.name} → </span>}
+                            <span>专题</span>
+                          </div>
+                        );
+                      })()}
+                      <form onSubmit={async (e) => { e.preventDefault(); await handleSaveStructure("topic", topicForm); setTopicForm(emptyTopicForm); setStructurePanel(null); }}>
+                        <div className="adm-field"><label>所属栏目 *</label>
+                          <select required value={topicForm.category_id} onChange={(e) => setTopicForm((c) => ({ ...c, category_id: e.target.value }))}>
+                            <option value="">请选择栏目</option>
+                            {categories.map((cat) => {
+                              const ch = channels.find((c) => c.id === cat.channel_id);
+                              return <option key={cat.id} value={cat.id}>{ch ? `${ch.name} / ` : ""}{cat.name}</option>;
+                            })}
+                          </select></div>
+                        <div className="adm-field"><label>专题名称 *</label>
+                          <input required value={topicForm.name} onChange={(e) => setTopicForm((c) => ({ ...c, name: e.target.value }))} placeholder="如：考研数学" /></div>
+                        <div className="adm-field"><label>Slug *</label>
+                          <input required value={topicForm.slug} onChange={(e) => setTopicForm((c) => ({ ...c, slug: e.target.value }))} placeholder="kaoyan-math" /></div>
+                        <div className="adm-field"><label>摘要介绍</label>
+                          <textarea value={topicForm.summary} onChange={(e) => setTopicForm((c) => ({ ...c, summary: e.target.value }))} rows={2} /></div>
+                        <div className="adm-field-row">
+                          <div className="adm-field"><label>排序</label>
+                            <input type="number" value={topicForm.sort_order} onChange={(e) => setTopicForm((c) => ({ ...c, sort_order: Number(e.target.value) }))} /></div>
+                          <div className="adm-field"><label>状态</label>
+                            <select value={topicForm.status} onChange={(e) => setTopicForm((c) => ({ ...c, status: e.target.value as "active" | "hidden" }))}>
+                              <option value="active">显示</option><option value="hidden">隐藏</option>
+                            </select></div>
+                        </div>
+                        <div className="adm-field adm-field--check"><label>
+                          <input type="checkbox" checked={topicForm.featured} onChange={(e) => setTopicForm((c) => ({ ...c, featured: e.target.checked }))} />
+                          设为精选专题（显示在首页）
+                        </label></div>
+                        <div className="admin-form-actions">
+                          <button className="adm-btn adm-btn--primary" type="submit">保存</button>
+                          <button className="adm-btn" type="button" onClick={() => setStructurePanel(null)}>取消</button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

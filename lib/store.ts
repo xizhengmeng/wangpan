@@ -882,3 +882,111 @@ export async function recordFeedback(
 export async function resolveFeedback(id: string) {
   await execute(`UPDATE feedback SET resolved = 1 WHERE id = ?`, [id]);
 }
+
+// ─── Structure CRUD ────────────────────────────────────────────────────────
+
+export async function saveChannel(input: {
+  id?: string;
+  name: string;
+  slug: string;
+  description: string;
+  sort_order?: number;
+  featured?: boolean;
+  status?: "active" | "hidden";
+}): Promise<Channel> {
+  const id = input.id || `channel_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const sort_order = input.sort_order ?? 0;
+  const featured = input.featured ? 1 : 0;
+  const status = input.status ?? "active";
+
+  await execute(
+    `INSERT INTO channels (id, name, slug, description, sort_order, featured, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       name = VALUES(name),
+       slug = VALUES(slug),
+       description = VALUES(description),
+       sort_order = VALUES(sort_order),
+       featured = VALUES(featured),
+       status = VALUES(status)`,
+    [id, input.name, input.slug, input.description, sort_order, featured, status]
+  );
+  return { id, name: input.name, slug: input.slug, description: input.description, sort: sort_order, featured: Boolean(featured), status };
+}
+
+export async function deleteChannel(id: string) {
+  await execute(`DELETE FROM channels WHERE id = ?`, [id]);
+}
+
+export async function saveCategory(input: {
+  id?: string;
+  channel_id: string;
+  parent_id?: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  sort_order?: number;
+  featured?: boolean;
+  status?: "active" | "hidden";
+}): Promise<CategoryNode> {
+  const id = input.id || `cat_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const sort_order = input.sort_order ?? 0;
+  const featured = input.featured ? 1 : 0;
+  const status = input.status ?? "active";
+  const parent_id = input.parent_id || null;
+
+  await execute(
+    `INSERT INTO categories (id, channel_id, parent_id, name, slug, description, sort_order, featured, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       channel_id = VALUES(channel_id),
+       parent_id = VALUES(parent_id),
+       name = VALUES(name),
+       slug = VALUES(slug),
+       description = VALUES(description),
+       sort_order = VALUES(sort_order),
+       featured = VALUES(featured),
+       status = VALUES(status)`,
+    [id, input.channel_id, parent_id, input.name, input.slug, input.description, sort_order, featured, status]
+  );
+  return { id, channel_id: input.channel_id, parent_id, name: input.name, slug: input.slug, description: input.description, sort: sort_order, featured: Boolean(featured), status };
+}
+
+export async function deleteCategory(id: string) {
+  await execute(`DELETE FROM categories WHERE id = ?`, [id]);
+}
+
+export async function saveTopic(input: {
+  id?: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  summary: string;
+  sort_order?: number;
+  featured?: boolean;
+  status?: "active" | "hidden";
+}): Promise<TopicNode> {
+  const id = input.id || `topic_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const sort_order = input.sort_order ?? 0;
+  const featured = input.featured ? 1 : 0;
+  const status = input.status ?? "active";
+
+  await execute(
+    `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       category_id = VALUES(category_id),
+       name = VALUES(name),
+       slug = VALUES(slug),
+       summary = VALUES(summary),
+       sort_order = VALUES(sort_order),
+       featured = VALUES(featured),
+       status = VALUES(status)`,
+    [id, input.category_id, input.name, input.slug, input.summary || "", sort_order, featured, status]
+  );
+  return { id, category_id: input.category_id, name: input.name, slug: input.slug, summary: input.summary, sort: sort_order, featured: Boolean(featured), status };
+}
+
+export async function deleteTopic(id: string) {
+  await execute(`DELETE FROM topics WHERE id = ?`, [id]);
+}

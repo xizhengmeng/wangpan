@@ -15,11 +15,13 @@ interface TopicPageProps {
     summary: string;
   };
   categoryName: string;
+  categorySlug: string;
   channelName: string;
+  channelSlug: string;
   resources: Resource[];
 }
 
-export default function TopicPage({ topic, categoryName, channelName, resources }: TopicPageProps) {
+export default function TopicPage({ topic, categoryName, categorySlug, channelName, channelSlug, resources }: TopicPageProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -38,13 +40,32 @@ export default function TopicPage({ topic, categoryName, channelName, resources 
 
       <div className="page-shell">
         <div className="container">
+          {/* Breadcrumb */}
+          <nav className="breadcrumb">
+            <Link href="/">首页</Link>
+            <span className="breadcrumb__sep">›</span>
+            {channelName && channelSlug && (
+              <>
+                <Link href={`/channel/${channelSlug}`}>{channelName}</Link>
+                <span className="breadcrumb__sep">›</span>
+              </>
+            )}
+            {categoryName && categorySlug && (
+              <>
+                <Link href={`/category/${categorySlug}`}>{categoryName}</Link>
+                <span className="breadcrumb__sep">›</span>
+              </>
+            )}
+            <span>{topic.name}</span>
+          </nav>
+
           <section className="page-hero panel">
-            <span className="eyebrow">专题页</span>
+            <span className="eyebrow">资料专题</span>
             <h1 className="page-title">{topic.name}</h1>
             <p className="page-copy">{topic.summary}</p>
             <div className="chip-row" style={{ marginTop: 14 }}>
-              <Link className="chip" href={`/search?q=${encodeURIComponent(channelName)}`}>{channelName}</Link>
-              <Link className="chip" href={`/search?q=${encodeURIComponent(categoryName)}`}>{categoryName}</Link>
+              <Link className="chip" href={channelSlug ? `/channel/${channelSlug}` : `/search?q=${encodeURIComponent(channelName)}`}>{channelName}</Link>
+              <Link className="chip" href={categorySlug ? `/category/${categorySlug}` : `/search?q=${encodeURIComponent(categoryName)}`}>{categoryName}</Link>
               <span className="chip">{resources.length} 条资源</span>
             </div>
           </section>
@@ -92,7 +113,9 @@ export const getServerSideProps: GetServerSideProps<TopicPageProps> = async ({ p
         summary: topic.summary
       },
       categoryName: category?.name || "未分类",
+      categorySlug: category?.slug || "",
       channelName: channel?.name || "未分频道",
+      channelSlug: channel?.slug || "",
       resources: await getResourcesByTopicId(topic.id)
     }
   };

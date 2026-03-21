@@ -20,6 +20,7 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
         title={`${query || "站内搜索"} 搜索结果`}
         description={query ? `查找与 ${query} 相关的夸克资料资源。` : "按关键词搜索站内资料。"}
         path={`/search?q=${encodeURIComponent(query)}`}
+        noindex={true}
       />
       <SearchRecorder query={query} total={total} />
 
@@ -27,9 +28,9 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
         <div className="container">
           <section className="page-hero panel">
             <span className="eyebrow">站内搜索</span>
-            <h1 className="page-title">按关键词定位资料</h1>
+            <h1 className="page-title">搜索夸克网盘资料</h1>
             <p className="page-copy">
-              V1 保持搜索简单清晰：仅关键词 + 相关性排序，不引入复杂筛选器。
+              输入关键词，按标题、标签、内容相关度排序，快速找到您需要的资料。
             </p>
             <SearchBox initialQuery={query} />
           </section>

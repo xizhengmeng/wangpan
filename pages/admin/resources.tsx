@@ -4,41 +4,46 @@ import type { ReactElement } from "react";
 import { AdminResourcesClient } from "@/components/AdminResourcesClient";
 import { Seo } from "@/components/Seo";
 import { requireAdminAuth } from "@/lib/auth";
+import { AnalyticsPeriod, AnalyticsPeriodPoint } from "@/lib/analytics";
 import { getAllResources, getAnalyticsSummary, getFeedback } from "@/lib/store";
 import { Feedback, Resource } from "@/lib/types";
 
-interface TopResource {
+interface RankedResource {
   resourceId: string;
   title: string;
   slug: string;
   count: number;
 }
 
-interface LowConversionResource {
-  resourceId: string;
-  title: string;
-  slug: string;
-  detailViews: number;
+interface DashboardPeriodData {
+  label: string;
+  rangeLabel: string;
+  granularityLabel: string;
+  visits: number;
+  searches: number;
+  clicks: number;
   downloads: number;
+  visitChange: number;
+  searchChange: number;
+  clickChange: number;
+  downloadChange: number;
+  points: AnalyticsPeriodPoint[];
+  topQueries: Array<{ query: string; count: number }>;
+  topClickedResources: RankedResource[];
+  topDownloadedResources: RankedResource[];
 }
 
 interface AdminPageProps {
   resources: Resource[];
-  metrics: Array<{ label: string; value: string }>;
-  topQueries: Array<{ query: string; count: number }>;
-  noResultQueries: Array<{ query: string; count: number }>;
-  topResources: TopResource[];
-  lowConversionResources: LowConversionResource[];
+  overviewMetrics: Array<{ label: string; value: string }>;
+  dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
   feedbackItems: Feedback[];
 }
 
 export default function AdminPage({
   resources,
-  metrics,
-  topQueries,
-  noResultQueries,
-  topResources,
-  lowConversionResources,
+  overviewMetrics,
+  dashboardPeriods,
   feedbackItems,
 }: AdminPageProps) {
   return (
@@ -51,11 +56,8 @@ export default function AdminPage({
       />
       <AdminResourcesClient
         initialResources={resources}
-        metrics={metrics}
-        topQueries={topQueries}
-        noResultQueries={noResultQueries}
-        topResources={topResources}
-        lowConversionResources={lowConversionResources}
+        overviewMetrics={overviewMetrics}
+        dashboardPeriods={dashboardPeriods}
         initialFeedback={feedbackItems}
       />
     </>
@@ -72,41 +74,38 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx
 
   const resourceMap = new Map(resources.map((r) => [r.id, r]));
 
-  const topResources: TopResource[] = analytics.topResources
-    .map((item) => {
+  const mapRankedResources = (items: Array<{ resourceId: string; count: number }>): RankedResource[] =>
+    items
+      .map((item) => {
       const r = resourceMap.get(item.resourceId);
       if (!r) return null;
       return { resourceId: item.resourceId, title: r.title, slug: r.slug, count: item.count };
     })
-    .filter(Boolean) as TopResource[];
+      .filter(Boolean) as RankedResource[];
 
-  const lowConversionResources: LowConversionResource[] = analytics.lowConversionResources
-    .map((item) => {
-      const r = resourceMap.get(item.resourceId);
-      if (!r) return null;
-      return {
-        resourceId: item.resourceId,
-        title: r.title,
-        slug: r.slug,
-        detailViews: item.detailViews,
-        downloads: item.downloads,
+  const dashboardPeriods = (Object.keys(analytics.periods) as AnalyticsPeriod[]).reduce(
+    (acc, period) => {
+      const summary = analytics.periods[period];
+      acc[period] = {
+        ...summary,
+        topClickedResources: mapRankedResources(summary.topClickedResources),
+        topDownloadedResources: mapRankedResources(summary.topDownloadedResources),
       };
-    })
-    .filter(Boolean) as LowConversionResource[];
+      return acc;
+    },
+    {} as Record<AnalyticsPeriod, DashboardPeriodData>
+  );
 
   return {
     props: {
       resources,
-      metrics: [
+      overviewMetrics: [
         { label: "资源总数", value: String(resources.length) },
         { label: "已发布", value: String(resources.filter((r) => r.publish_status === "published").length) },
         { label: "累计事件", value: String(analytics.totalEvents) },
         { label: "无结果词", value: String(analytics.noResultQueries.length) },
       ],
-      topQueries: analytics.topQueries,
-      noResultQueries: analytics.noResultQueries,
-      topResources,
-      lowConversionResources,
+      dashboardPeriods,
       feedbackItems: feedback,
     },
   };

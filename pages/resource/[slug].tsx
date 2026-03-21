@@ -50,8 +50,19 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
 
       <div className="page-shell">
         <div className="container">
+          {/* Breadcrumb */}
+          {!offline && resource.channel_id && (
+            <nav className="breadcrumb">
+              <Link href="/">首页</Link>
+              <span className="breadcrumb__sep">›</span>
+              <Link href={`/search?q=${encodeURIComponent(resource.category)}`}>{resource.category}</Link>
+              <span className="breadcrumb__sep">›</span>
+              <span>{resource.title}</span>
+            </nav>
+          )}
+
           <section className="page-hero panel">
-            <span className="eyebrow">{offline ? "资源已下线" : "资源详情页"}</span>
+            <span className="eyebrow">{offline ? "资源已下线" : "夸克网盘资料"}</span>
             <h1 className="page-title">{resource.title}</h1>
             <p className="page-copy">
               {offline
@@ -71,10 +82,7 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
                 <span className="meta-pill">更新于 {formatDate(resource.updated_at)}</span>
               </div>
               <h2 className="resource-title">资源说明</h2>
-              <p>
-                {resource.summary}
-                这类详情页承担 SEO 收录和转化双重职责，因此正文、标签和相关资源都会保留在页面内，帮助抓取和提升二次点击。
-              </p>
+              <p>{resource.summary}</p>
 
               <div className="tag-cloud">
                 {resource.tags.map((tag) => (
@@ -89,7 +97,7 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
                   <div className="section-head">
                     <div>
                       <h2 className="section-title">相关资源</h2>
-                      <p className="section-subtitle">详情页继续把权重分发给同类内容。</p>
+                      <p className="section-subtitle">同分类或同标签的其他资料。</p>
                     </div>
                   </div>
                   <div className="card-grid">
@@ -104,7 +112,7 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
             <aside className="sticky-card">
               <strong>{offline ? "资源状态" : "夸克下载"}</strong>
               <p className="muted">
-                {offline ? "该资源当前不可用，请在后台修复链接或重新发布。" : "先记录点击，再跳转到夸克网盘。"}
+                {offline ? "该资源当前不可用，请联系站长补充。" : "点击按钮直接跳转到夸克网盘，即可下载。"}
               </p>
               {!offline ? (
                 <Link className="button-link" href={`/go/${resource.id}`}>
