@@ -28,18 +28,9 @@ interface HomeProps {
   };
 }
 
-function timeAgo(dateStr: string) {
-  const now = Date.now();
-  const time = new Date(dateStr).getTime();
-  const diff = Math.max(0, Math.floor((now - time) / 1000));
-
-  if (diff < 3600) {
-    return `${Math.max(1, Math.floor(diff / 60))} 分钟前`;
-  }
-  if (diff < 86400) {
-    return `${Math.floor(diff / 3600)} 小时前`;
-  }
-  return `${Math.floor(diff / 86400)} 天前`;
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function rankLabel(index: number) {
@@ -81,7 +72,7 @@ export default function Home({
 
   return (
     <>
-      <Seo title="首页" description={siteConfig.description} path="/" />
+      <Seo title="夸克网盘资料搜索站" description={siteConfig.description} path="/" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -90,10 +81,11 @@ export default function Home({
       <div className="home-v4">
         <section className="home-v4-search">
           <div className="home-v4-search__top">
-            <span className="home-v4-search__eyebrow">资料检索入口</span>
-            <h1>夸克网盘资料</h1>
+            <span className="home-v4-search__eyebrow">免费夸克网盘资料</span>
+            <h1>夸克网盘资料搜索站</h1>
             <p>
-              课程、考试、模板、软件与整理内容，先用关键词定位，再进入热门频道继续筛选。
+              收录海量夸克网盘资料，涵盖考试试卷、课程视频、办公模板与编程素材。
+              输入关键词即可搜索全站夸克网盘资料，支持分类浏览与专题整理，快速直达夸克网盘下载链接。
             </p>
           </div>
 
@@ -140,8 +132,8 @@ export default function Home({
             <section className="home-v4-section home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">Latest</span>
-                  <h2>最近更新</h2>
+                  <span className="home-v4-section__eyebrow">资料更新</span>
+                  <h2>最新夸克网盘资料</h2>
                 </div>
                 <Link href="/search?q=">查看更多</Link>
               </div>
@@ -150,7 +142,7 @@ export default function Home({
                   <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
                     <div className="home-v4-resource-item__meta">
                       <span className="home-v4-resource-item__category">{resource.category}</span>
-                      <span>{timeAgo(resource.updated_at)}</span>
+                      <span>{formatDate(resource.updated_at)}</span>
                     </div>
                     <h3>{resource.title}</h3>
                     <p>{resource.summary}</p>
@@ -165,14 +157,14 @@ export default function Home({
               <div className="home-v4-card__head">
                 <span className="home-v4-card__mark">夸</span>
                 <div>
-                  <h2>站点概览</h2>
-                  <p>{structure.site_profile.positioning}</p>
+                  <h2>关于夸克网盘资料站</h2>
+                  <p>{structure.site_profile.positioning || "专注整理与分享夸克网盘资料"}</p>
                 </div>
               </div>
               <div className="home-v4-overview">
                 <div className="home-v4-overview__item">
                   <strong>{stats.resourceCount}</strong>
-                  <span>已收录资源</span>
+                  <span>夸克网盘资料</span>
                 </div>
                 <div className="home-v4-overview__item">
                   <strong>{featuredChannels.length}</strong>
@@ -180,20 +172,24 @@ export default function Home({
                 </div>
                 <div className="home-v4-overview__item">
                   <strong>{stats.categoryCount}</strong>
-                  <span>栏目</span>
+                  <span>资料分类</span>
                 </div>
                 <div className="home-v4-overview__item">
                   <strong>{hotSearches.length}</strong>
-                  <span>热门搜索</span>
+                  <span>热门搜索词</span>
                 </div>
               </div>
+              <p className="home-v4-card__desc">
+                本站专注整理夸克网盘资料，所有夸克网盘资料均可直达下载，
+                无需注册即可免费获取夸克网盘资料。
+              </p>
             </section>
 
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">Hot</span>
-                  <h2>热门资源</h2>
+                  <span className="home-v4-section__eyebrow">热门资料</span>
+                  <h2>热门夸克网盘资料</h2>
                 </div>
               </div>
               <div className="home-v4-rank">
@@ -209,8 +205,8 @@ export default function Home({
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">Tags</span>
-                  <h2>热门标签</h2>
+                  <span className="home-v4-section__eyebrow">资料分类</span>
+                  <h2>夸克资料热门标签</h2>
                 </div>
               </div>
               <div className="home-v4-tags">

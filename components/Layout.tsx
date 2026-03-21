@@ -55,51 +55,19 @@ export function Layout({ children }: PropsWithChildren) {
       return [{ key: "home", label: "首页", href: "/" }] as NavItem[];
     }
 
-    const preferredPrimarySlugs = [
-      "education-exam",
-      "skill-growth",
-      "language-learning",
-      "software-tools",
-    ];
-    const shortLabels: Record<string, string> = {
-      "education-exam": "考试",
-      "skill-growth": "技能",
-      "language-learning": "语言",
-      "software-tools": "工具",
-    };
-
     const activeChannels = [...structure.channels]
       .filter((channel) => channel.status === "active")
       .sort((a, b) => {
-        const preferredDelta =
-          preferredPrimarySlugs.indexOf(a.slug) === -1
-            ? 999
-            : preferredPrimarySlugs.indexOf(a.slug);
-        const preferredCompare =
-          preferredPrimarySlugs.indexOf(b.slug) === -1
-            ? 999
-            : preferredPrimarySlugs.indexOf(b.slug);
-
-        if (preferredDelta !== preferredCompare) {
-          return preferredDelta - preferredCompare;
-        }
-
         const featuredDelta = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
-        if (featuredDelta !== 0) {
-          return featuredDelta;
-        }
-
+        if (featuredDelta !== 0) return featuredDelta;
         return a.sort - b.sort;
       });
 
-    const primaryChannels = activeChannels.slice(0, 4);
-    const overflowChannels = activeChannels.slice(4);
-
-    const channelItems: NavItem[] = primaryChannels.map((channel) => {
+    const channelItems: NavItem[] = activeChannels.map((channel) => {
       const categories = structure.categories
         .filter((category) => category.channel_id === channel.id && category.status === "active")
         .sort((a, b) => a.sort - b.sort)
-        .slice(0, 6)
+        .slice(0, 8)
         .map((category) => ({
           label: category.name,
           href: `/category/${category.slug}`
@@ -107,34 +75,14 @@ export function Layout({ children }: PropsWithChildren) {
 
       return {
         key: channel.id,
-        label: shortLabels[channel.slug] || channel.name,
+        label: channel.name,
         href: `/channel/${channel.slug}`,
         children: categories,
         variant: "links",
       };
     });
 
-    const items: NavItem[] = [{ key: "home", label: "首页", href: "/" }, ...channelItems];
-
-    if (overflowChannels.length > 0) {
-      items.push({
-        key: "more",
-        label: "更多",
-        href: "/search?q=",
-        children: overflowChannels.map((channel) => ({
-          label: channel.name,
-          href: `/channel/${channel.slug}`,
-          meta: structure.categories
-            .filter((category) => category.channel_id === channel.id && category.status === "active")
-            .sort((a, b) => a.sort - b.sort)
-            .slice(0, 3)
-            .map((category) => category.name),
-        })),
-        variant: "cards",
-      });
-    }
-
-    return items;
+    return [{ key: "home", label: "首页", href: "/" }, ...channelItems];
   }, [structure]);
 
   useEffect(() => {
