@@ -135,23 +135,34 @@ function mapResourceRow(
   tagsByResourceId: Map<string, string[]>,
   topicIdsByResourceId: Map<string, string[]>
 ): Resource {
-  return {
+  const resource: Resource = {
     id: row.id,
     title: row.title,
     slug: row.slug,
     summary: row.summary,
     category: row.category,
-    channel_id: row.channel_id || undefined,
-    category_id: row.category_id || undefined,
     topic_ids: topicIdsByResourceId.get(row.id) || [],
     tags: tagsByResourceId.get(row.id) || [],
     cover: row.cover,
     quark_url: row.quark_url,
-    extract_code: row.extract_code || undefined,
     publish_status: row.publish_status,
     published_at: toIsoString(row.published_at),
     updated_at: toIsoString(row.updated_at),
   };
+
+  if (row.channel_id) {
+    resource.channel_id = row.channel_id;
+  }
+
+  if (row.category_id) {
+    resource.category_id = row.category_id;
+  }
+
+  if (row.extract_code) {
+    resource.extract_code = row.extract_code;
+  }
+
+  return resource;
 }
 
 async function loadTagsForResourceIds(resourceIds: string[]) {
@@ -711,7 +722,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       tagline: siteProfile?.tagline || "搜索优先的夸克资料站",
       short_link: siteProfile?.short_link || "",
       positioning: siteProfile?.positioning || "通过数据库驱动频道、栏目、专题和资源。",
-      featured_message: siteProfile?.featured_message || undefined,
+      ...(siteProfile?.featured_message ? { featured_message: siteProfile.featured_message } : {}),
     },
     channels: channelRows.map<Channel>((row) => ({
       id: row.id,
@@ -725,7 +736,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
     categories: categoryRows.map<CategoryNode>((row) => ({
       id: row.id,
       channel_id: row.channel_id,
-      parent_id: row.parent_id || undefined,
+      ...(row.parent_id ? { parent_id: row.parent_id } : {}),
       name: row.name,
       slug: row.slug,
       description: row.description,
@@ -833,7 +844,7 @@ export async function getFeedback(): Promise<Feedback[]> {
     resource_title: row.resource_title,
     resource_slug: row.resource_slug,
     reason: row.reason,
-    note: row.note || undefined,
+    ...(row.note ? { note: row.note } : {}),
     created_at: toIsoString(row.created_at),
     resolved: Boolean(row.resolved),
   }));

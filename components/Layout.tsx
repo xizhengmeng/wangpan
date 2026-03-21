@@ -2,13 +2,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, PropsWithChildren } from "react";
 import { useRouter } from "next/router";
 
-import { SearchBox } from "@/components/SearchBox";
 import { ContentStructure } from "@/lib/types";
 
 interface NavChildItem {
   label: string;
   href: string;
-  description?: string;
 }
 
 interface NavItem {
@@ -74,8 +72,7 @@ export function Layout({ children }: PropsWithChildren) {
         .slice(0, 6)
         .map((category) => ({
           label: category.name,
-          href: `/category/${category.slug}`,
-          description: category.description
+          href: `/category/${category.slug}`
         }));
 
       return {
@@ -95,8 +92,7 @@ export function Layout({ children }: PropsWithChildren) {
         href: "/search?q=",
         children: overflowChannels.map((channel) => ({
           label: channel.name,
-          href: `/channel/${channel.slug}`,
-          description: channel.description
+          href: `/channel/${channel.slug}`
         }))
       });
     }
@@ -182,7 +178,6 @@ export function Layout({ children }: PropsWithChildren) {
                       {item.children?.map((child) => (
                         <Link className="nav-submenu__link" href={child.href} key={child.href}>
                           <strong>{child.label}</strong>
-                          {child.description ? <span>{child.description}</span> : null}
                         </Link>
                       ))}
                     </div>
@@ -193,11 +188,10 @@ export function Layout({ children }: PropsWithChildren) {
           </nav>
 
           <div className="header-search">
-            <SearchBox compact />
+            <Link href="/search?q=" className="header-search-btn">
+              搜索
+            </Link>
           </div>
-
-          <Link href="/admin/resources" className="btn-admin">后台</Link>
-          <Link href="/admin/structure" className="btn-admin btn-admin--ghost">结构</Link>
         </div>
       </header>
 
@@ -208,8 +202,6 @@ export function Layout({ children }: PropsWithChildren) {
           <p>夸克资料站 · 搜索驱动更新</p>
           <p>
             <Link href="/sitemap.xml">Sitemap</Link>
-            <span className="footer-sep">·</span>
-            <Link href="/admin/resources">后台管理</Link>
           </p>
         </div>
       </footer>

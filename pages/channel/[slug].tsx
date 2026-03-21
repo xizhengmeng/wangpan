@@ -31,6 +31,11 @@ interface ChannelPageProps {
 }
 
 export default function ChannelPage({ channel }: ChannelPageProps) {
+  const totalResources = channel.categories.reduce(
+    (sum, cat) => sum + cat.resources.length,
+    channel.resources.length
+  );
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -51,63 +56,95 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="page-shell">
-        <div className="container">
-          <section className="page-hero panel">
-            <span className="eyebrow">内容频道</span>
-            <h1 className="page-title">{channel.name}</h1>
-            <p className="page-copy">{channel.description}</p>
-            <div className="chip-row" style={{ marginTop: 14 }}>
-              <span className="chip">栏目 {channel.categories.length}</span>
-              <span className="chip">资源 {channel.resources.length}</span>
+      <div className="ch-shell">
+        {/* ── Page header ── */}
+        <header className="ch-header">
+          <div className="ch-header__inner">
+            <div className="ch-header__text">
+              <p className="ch-header__eyebrow">内容频道</p>
+              <h1 className="ch-header__title">{channel.name}</h1>
+              <p className="ch-header__desc">{channel.description}</p>
             </div>
-          </section>
+            <div className="ch-header__stats">
+              <div className="ch-stat">
+                <span className="ch-stat__num">{channel.categories.length}</span>
+                <span className="ch-stat__label">栏目</span>
+              </div>
+              <div className="ch-stat">
+                <span className="ch-stat__num">{totalResources}</span>
+                <span className="ch-stat__label">资源</span>
+              </div>
+            </div>
+          </div>
+        </header>
 
-          <div className="main-grid">
-            {channel.categories.map((category) => (
-              <section className="section panel" key={category.id} style={{ padding: 20 }}>
-                <div className="section-head">
-                  <div>
-                    <h2 className="section-title">{category.name}</h2>
-                    <p className="section-subtitle">{category.description}</p>
-                  </div>
-                  <Link className="chip" href={`/search?q=${encodeURIComponent(category.name)}`}>
-                    搜索该栏目
-                  </Link>
+        {/* ── Category sections ── */}
+        <div className="ch-body">
+          {channel.categories.map((category) => (
+            <section className="ch-category" key={category.id}>
+              {/* Category header */}
+              <div className="ch-category__head">
+                <div className="ch-category__meta">
+                  <h2 className="ch-category__name">{category.name}</h2>
+                  {category.description && (
+                    <p className="ch-category__desc">{category.description}</p>
+                  )}
                 </div>
+                <Link
+                  className="ch-category__search"
+                  href={`/search?q=${encodeURIComponent(category.name)}`}
+                >
+                  搜此栏目 →
+                </Link>
+              </div>
 
-                <div className="chip-row" style={{ marginBottom: 16 }}>
+              {/* Topic chips */}
+              {category.topics.length > 0 && (
+                <div className="ch-topic-chips">
                   {category.topics.map((topic) => (
-                    <Link
-                      className="chip"
-                      href={`/topic/${topic.slug}`}
-                      key={topic.id}
-                    >
-                      {topic.name} · {topic.resources.length}
+                    <Link className="ch-topic-chip" href={`/topic/${topic.slug}`} key={topic.id}>
+                      {topic.name}
+                      <span className="ch-topic-chip__count">{topic.resources.length}</span>
                     </Link>
                   ))}
                 </div>
+              )}
 
-                {category.topics.length > 0 ? (
-                  <div className="home-v3-picks" style={{ padding: 0, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-                    {category.topics.slice(0, 4).map((topic) => (
-                      <Link className="home-v3-pick" href={`/topic/${topic.slug}`} key={topic.id}>
-                        <div className="home-v3-pick__meta">
-                          <span>专题</span>
-                          <span>{topic.resources.length} 条资源</span>
+              {/* Topic cards */}
+              {category.topics.length > 0 && (
+                <div className="ch-topic-grid">
+                  {category.topics.slice(0, 6).map((topic) => (
+                    <Link className="ch-topic-card" href={`/topic/${topic.slug}`} key={topic.id}>
+                      <div className="ch-topic-card__top">
+                        <h3 className="ch-topic-card__title">{topic.name}</h3>
+                        <span className="ch-topic-card__count">{topic.resources.length} 个资源</span>
+                      </div>
+                      {topic.summary && (
+                        <p className="ch-topic-card__summary">{topic.summary}</p>
+                      )}
+                      {topic.resources[0] && (
+                        <div className="ch-topic-card__preview">
+                          {topic.resources[0].title}
                         </div>
-                        <h3>{topic.name}</h3>
-                        <p>{topic.summary}</p>
-                        <div className="home-v3-pick__stack">
-                          <span>{topic.resources[0]?.title || "等待补库"}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </section>
-            ))}
-          </div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Direct resources (no topics) */}
+              {category.topics.length === 0 && category.resources.length > 0 && (
+                <div className="ch-resource-list">
+                  {category.resources.slice(0, 8).map((res) => (
+                    <Link className="ch-resource-row" href={`/resource/${res.slug}`} key={res.id}>
+                      <span className="ch-resource-row__title">{res.title}</span>
+                      <span className="ch-resource-row__arrow">→</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
         </div>
       </div>
     </>
