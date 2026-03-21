@@ -34,6 +34,9 @@ interface AdminResourcesClientProps {
   initialResources: Resource[];
   overviewMetrics: Array<{ label: string; value: string }>;
   dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
+  initialChannels: Channel[];
+  initialCategories: CategoryNode[];
+  initialTopics: TopicNode[];
   initialFeedback: Feedback[];
 }
 
@@ -59,6 +62,9 @@ const emptyResForm = {
   title: "",
   slug: "",
   summary: "",
+  channel_id: "",
+  category_id: "",
+  topic_id: "",
   category: "",
   tags: "",
   cover: "",
@@ -66,11 +72,12 @@ const emptyResForm = {
   extract_code: "",
   publish_status: "draft",
   published_at: new Date().toISOString().slice(0, 16),
+  meta: {} as Record<string, string>,
 };
 
 const emptyChannelForm = { id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
 const emptyCategoryForm = { id: "", channel_id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
-const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
+const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden", field_schema: "" };
 
 function formatDelta(value: number) {
   if (value === 0) {
@@ -151,6 +158,9 @@ export function AdminResourcesClient({
   initialResources,
   overviewMetrics,
   dashboardPeriods,
+  initialChannels,
+  initialCategories,
+  initialTopics,
   initialFeedback,
 }: AdminResourcesClientProps) {
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -167,11 +177,28 @@ export function AdminResourcesClient({
   const [feedback, setFeedback] = useState(initialFeedback);
 
   /* ── Structure state ── */
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [topics, setTopics] = useState<TopicNode[]>([]);
-  const [structureLoaded, setStructureLoaded] = useState(false);
+  const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  const [categories, setCategories] = useState<CategoryNode[]>(initialCategories);
+  const [topics, setTopics] = useState<TopicNode[]>(initialTopics);
+  const [structureLoaded, setStructureLoaded] = useState(true);
+  const [collapsedChannels, setCollapsedChannels] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [channelForm, setChannelForm] = useState(emptyChannelForm);
+
+  function toggleChannel(id: string) {
+    setCollapsedChannels((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function toggleCategory(id: string) {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
   const [topicForm, setTopicForm] = useState(emptyTopicForm);
 
@@ -208,6 +235,25 @@ export function AdminResourcesClient({
     });
   }, [sortedResources, statusFilter, titleSearch]);
 
+  const channelOptions = useMemo(() => channels, [channels]);
+
+  const categoryOptions = useMemo(
+    () =>
+      categories.filter((category) => category.channel_id === form.channel_id),
+    [categories, form.channel_id]
+  );
+
+  const topicOptions = useMemo(
+    () =>
+      topics.filter((topic) => topic.category_id === form.category_id),
+    [topics, form.category_id]
+  );
+
+  const selectedTopicSchema = useMemo(
+    () => topics.find((t) => t.id === form.topic_id)?.field_schema ?? [],
+    [topics, form.topic_id]
+  );
+
   const currentDashboard = dashboardPeriods[dashboardPeriod];
   const dashboardMetricCards = useMemo(
     () => [
@@ -236,19 +282,76 @@ export function AdminResourcesClient({
     setForm((c) => ({ ...c, [name]: value }));
   }
 
+  function handleChannelSelect(channelId: string) {
+    setForm((current) => ({
+      ...current,
+      channel_id: channelId,
+      category_id: "",
+      topic_id: "",
+      category: "",
+    }));
+  }
+
+  function handleCategorySelect(categoryId: string) {
+    const selectedCategory = categories.find((item) => item.id === categoryId);
+
+    if (!selectedCategory) {
+      setForm((current) => ({
+        ...current,
+        category_id: "",
+        topic_id: "",
+        category: "",
+      }));
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      channel_id: selectedCategory.channel_id,
+      category_id: selectedCategory.id,
+      topic_id: "",
+      category: selectedCategory.name,
+    }));
+  }
+
+  function handleTopicSelect(topicId: string) {
+    setForm((current) => ({
+      ...current,
+      topic_id: topicId,
+      meta: {},
+    }));
+  }
+
+  function handleMetaChange(key: string, value: string) {
+    setForm((current) => ({ ...current, meta: { ...current.meta, [key]: value } }));
+  }
+
   function handleEdit(resource: Resource) {
+    const matchedTopic = resource.topic_ids?.[0]
+      ? topics.find((item) => item.id === resource.topic_ids?.[0])
+      : null;
+    const matchedCategory = resource.category_id
+      ? categories.find((item) => item.id === resource.category_id)
+      : matchedTopic
+        ? categories.find((item) => item.id === matchedTopic.category_id)
+        : categories.find((item) => item.name === resource.category);
+
     setForm({
       id: resource.id,
       title: resource.title,
       slug: resource.slug,
       summary: resource.summary,
-      category: resource.category,
+      channel_id: matchedCategory?.channel_id || resource.channel_id || "",
+      category_id: matchedCategory?.id || resource.category_id || "",
+      topic_id: matchedTopic?.id || resource.topic_ids?.[0] || "",
+      category: matchedCategory?.name || resource.category,
       tags: resource.tags.join(", "),
       cover: resource.cover,
       quark_url: resource.quark_url,
       extract_code: resource.extract_code || "",
       publish_status: resource.publish_status,
       published_at: resource.published_at.slice(0, 16),
+      meta: resource.meta || {},
     });
     setTab("form");
   }
@@ -257,10 +360,13 @@ export function AdminResourcesClient({
     e.preventDefault();
     setMessage(null);
     startTransition(async () => {
+      const { topic_id, ...restForm } = form;
       const payload = {
-        ...form,
+        ...restForm,
+        topic_ids: topic_id ? [topic_id] : [],
         tags: form.tags.split(/[|,，]/).map((t) => t.trim()).filter(Boolean),
         published_at: new Date(form.published_at).toISOString(),
+        meta: Object.keys(form.meta).length > 0 ? form.meta : undefined,
       };
       const method = form.id ? "PUT" : "POST";
       const url = form.id ? `/api/admin/resources/${form.id}` : "/api/admin/resources";
@@ -329,10 +435,23 @@ export function AdminResourcesClient({
 
   /* ── Structure handlers ── */
   async function handleSaveStructure(type: "channel" | "category" | "topic", data: Record<string, unknown>) {
+    let payload: Record<string, unknown> = { type, ...data };
+    // parse field_schema JSON string before sending
+    if (type === "topic" && typeof data.field_schema === "string") {
+      const raw = (data.field_schema as string).trim();
+      if (raw) {
+        try { payload = { ...payload, field_schema: JSON.parse(raw) }; }
+        catch { notify("err", "字段配置 JSON 格式有误"); return; }
+      } else {
+        const { field_schema: _fs, ...rest } = payload;
+        void _fs;
+        payload = rest;
+      }
+    }
     const res = await fetch("/api/admin/structure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, ...data }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) { notify("err", "保存失败"); return; }
     notify("ok", "保存成功");
@@ -604,15 +723,98 @@ export function AdminResourcesClient({
                   <label htmlFor="summary">摘要 *</label>
                   <textarea id="summary" name="summary" value={form.summary} onChange={handleInputChange} required placeholder="简短描述资源内容" />
                 </div>
-                <div className="adm-field-row">
+                <div className="adm-field-row adm-field-row--triple">
                   <div className="adm-field">
-                    <label htmlFor="category">分类 *</label>
-                    <input id="category" name="category" value={form.category} onChange={handleInputChange} required />
+                    <label htmlFor="channel_id">频道 *</label>
+                    <select
+                      id="channel_id"
+                      name="channel_id"
+                      value={form.channel_id}
+                      onChange={(e) => handleChannelSelect(e.target.value)}
+                      required
+                    >
+                      <option value="">先选择频道</option>
+                      {channelOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}{option.status === "hidden" ? "（隐藏）" : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="adm-field">
-                    <label htmlFor="tags">标签（逗号分隔）</label>
-                    <input id="tags" name="tags" value={form.tags} onChange={handleInputChange} />
+                    <label htmlFor="category_id">栏目 *</label>
+                    <select
+                      id="category_id"
+                      name="category_id"
+                      value={form.category_id}
+                      onChange={(e) => handleCategorySelect(e.target.value)}
+                      required
+                      disabled={!form.channel_id}
+                    >
+                      <option value="">{form.channel_id ? "再选择栏目" : "请先选频道"}</option>
+                      {categoryOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}{option.status === "hidden" ? "（隐藏）" : ""}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  <div className="adm-field">
+                    <label htmlFor="topic_id">专题 *</label>
+                    <select
+                      id="topic_id"
+                      name="topic_id"
+                      value={form.topic_id}
+                      onChange={(e) => handleTopicSelect(e.target.value)}
+                      required
+                      disabled={!form.category_id}
+                    >
+                      <option value="">{form.category_id ? "最后选择专题" : "请先选栏目"}</option>
+                      {topicOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}{option.status === "hidden" ? "（隐藏）" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <small className="adm-field__hint">
+                      {form.topic_id
+                        ? `已绑定：${channels.find((item) => item.id === form.channel_id)?.name || "未分组频道"} / ${categories.find((item) => item.id === form.category_id)?.name || form.category} / ${topics.find((item) => item.id === form.topic_id)?.name || form.topic_id}`
+                        : "按 频道 → 栏目 → 专题 逐级选择。"}
+                    </small>
+                  </div>
+                </div>
+                {selectedTopicSchema.length > 0 && (
+                  <div className="admin-form-section">
+                    <h2 className="admin-form-section__title">专题扩展字段</h2>
+                    <div className="adm-field-row">
+                      {selectedTopicSchema.map((field) => (
+                        <div className="adm-field" key={field.key}>
+                          <label>{field.label}</label>
+                          {field.type === "select" && field.options ? (
+                            <select
+                              value={form.meta[field.key] || ""}
+                              onChange={(e) => handleMetaChange(field.key, e.target.value)}
+                            >
+                              <option value="">请选择{field.label}</option>
+                              {field.options.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              value={form.meta[field.key] || ""}
+                              onChange={(e) => handleMetaChange(field.key, e.target.value)}
+                              placeholder={field.label}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="adm-field">
+                  <label htmlFor="tags">标签（逗号分隔）</label>
+                  <input id="tags" name="tags" value={form.tags} onChange={handleInputChange} />
                 </div>
               </div>
 
@@ -740,10 +942,22 @@ export function AdminResourcesClient({
                 <h1>导航与分类</h1>
                 <p className="adm-page__desc">频道 → 栏目 → 专题，三级从属结构</p>
               </div>
-              <button type="button" className="adm-btn adm-btn--primary"
-                onClick={() => { setChannelForm(emptyChannelForm); setStructurePanel("channel"); }}>
-                + 新增频道
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="adm-btn adm-btn--sm"
+                  onClick={() => {
+                    const allCh = new Set(channels.map((c) => c.id));
+                    const allCat = new Set(categories.map((c) => c.id));
+                    const anyOpen = collapsedChannels.size < allCh.size || collapsedCategories.size < allCat.size;
+                    if (anyOpen) { setCollapsedChannels(allCh); setCollapsedCategories(allCat); }
+                    else { setCollapsedChannels(new Set()); setCollapsedCategories(new Set()); }
+                  }}>
+                  {collapsedChannels.size + collapsedCategories.size > 0 ? "全部展开" : "全部折叠"}
+                </button>
+                <button type="button" className="adm-btn adm-btn--primary"
+                  onClick={() => { setChannelForm(emptyChannelForm); setStructurePanel("channel"); }}>
+                  + 新增频道
+                </button>
+              </div>
             </div>
 
             <div className="stree-layout">
@@ -757,10 +971,16 @@ export function AdminResourcesClient({
 
                 {channels.map((ch) => {
                   const chCats = categories.filter((c) => c.channel_id === ch.id);
+                  const chCollapsed = collapsedChannels.has(ch.id);
                   return (
                     <div className="stree-channel" key={ch.id}>
                       {/* 频道行 */}
                       <div className="stree-row stree-row--channel">
+                        <button type="button" className="stree-toggle" onClick={() => toggleChannel(ch.id)}
+                          title={chCollapsed ? "展开" : "折叠"}>
+                          <span className={`stree-chevron${chCollapsed ? " stree-chevron--collapsed" : ""}`}>▾</span>
+                          <span className="stree-toggle__count">{chCats.length}</span>
+                        </button>
                         <span className="stree-row__icon">📡</span>
                         <div className="stree-row__body">
                           <span className="stree-row__name">{ch.name}</span>
@@ -783,15 +1003,20 @@ export function AdminResourcesClient({
                       </div>
 
                       {/* 栏目行 */}
-                      {chCats.length === 0 && (
+                      {!chCollapsed && chCats.length === 0 && (
                         <div className="stree-hint">暂无栏目，点击「+ 栏目」添加</div>
                       )}
-                      {chCats.map((cat, catIdx) => {
+                      {!chCollapsed && chCats.map((cat, catIdx) => {
                         const catTopics = topics.filter((t) => t.category_id === cat.id);
                         const isLastCat = catIdx === chCats.length - 1;
+                        const catCollapsed = collapsedCategories.has(cat.id);
                         return (
                           <div className={`stree-cat-block${isLastCat ? " stree-cat-block--last" : ""}`} key={cat.id}>
                             <div className="stree-row stree-row--category">
+                              <button type="button" className="stree-toggle stree-toggle--sm" onClick={() => toggleCategory(cat.id)}>
+                                <span className={`stree-chevron${catCollapsed ? " stree-chevron--collapsed" : ""}`}>▾</span>
+                                <span className="stree-toggle__count">{catTopics.length}</span>
+                              </button>
                               <span className="stree-row__icon">📂</span>
                               <div className="stree-row__body">
                                 <span className="stree-row__name">{cat.name}</span>
@@ -812,10 +1037,10 @@ export function AdminResourcesClient({
                             </div>
 
                             {/* 专题行 */}
-                            {catTopics.length === 0 && (
+                            {!catCollapsed && catTopics.length === 0 && (
                               <div className="stree-hint stree-hint--topic">暂无专题</div>
                             )}
-                            {catTopics.map((topic, topicIdx) => {
+                            {!catCollapsed && catTopics.map((topic, topicIdx) => {
                               const isLastTopic = topicIdx === catTopics.length - 1;
                               return (
                                 <div className={`stree-row stree-row--topic${isLastTopic ? " stree-row--last" : ""}`} key={topic.id}>
@@ -828,7 +1053,7 @@ export function AdminResourcesClient({
                                   </div>
                                   <div className="stree-row__actions">
                                     <button type="button" className="stree-action"
-                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status }); setStructurePanel("topic"); }}>编辑</button>
+                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
                                     <button type="button" className="stree-action stree-action--del"
                                       onClick={() => handleDeleteStructure("topic", topic.id)}>删除</button>
                                   </div>
@@ -958,6 +1183,17 @@ export function AdminResourcesClient({
                           <input required value={topicForm.slug} onChange={(e) => setTopicForm((c) => ({ ...c, slug: e.target.value }))} placeholder="kaoyan-math" /></div>
                         <div className="adm-field"><label>摘要介绍</label>
                           <textarea value={topicForm.summary} onChange={(e) => setTopicForm((c) => ({ ...c, summary: e.target.value }))} rows={2} /></div>
+                        <div className="adm-field">
+                          <label>扩展字段配置（JSON）</label>
+                          <textarea
+                            value={topicForm.field_schema}
+                            onChange={(e) => setTopicForm((c) => ({ ...c, field_schema: e.target.value }))}
+                            rows={6}
+                            placeholder={'[{"key":"subject","label":"科目","type":"select","options":["语文","数学"]}]'}
+                            style={{ fontFamily: "monospace", fontSize: 12 }}
+                          />
+                          <small className="adm-field__hint">留空表示不启用扩展筛选。格式：JSON 数组，每项含 key、label、type（select/text）、options（数组）。</small>
+                        </div>
                         <div className="adm-field-row">
                           <div className="adm-field"><label>排序</label>
                             <input type="number" value={topicForm.sort_order} onChange={(e) => setTopicForm((c) => ({ ...c, sort_order: Number(e.target.value) }))} /></div>

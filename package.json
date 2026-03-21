@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run generate:sitemaps && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "generate:sitemaps": "node scripts/generate-sitemaps.mjs",
     "init:db": "node scripts/init-db.mjs",
     "sync:data": "node scripts/sync-data.mjs"
   },

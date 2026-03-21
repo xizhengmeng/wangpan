@@ -34,6 +34,7 @@ type ResourceRow = RowDataPacket & {
   publish_status: PublishStatus;
   published_at: string;
   updated_at: string;
+  meta: string | null;
 };
 
 type TagRow = RowDataPacket & {
@@ -86,6 +87,7 @@ type TopicRow = RowDataPacket & {
   sort_order: number;
   featured: number;
   status: "active" | "hidden";
+  field_schema: string | null;
 };
 
 type EventRow = RowDataPacket & {
@@ -160,6 +162,12 @@ function mapResourceRow(
 
   if (row.extract_code) {
     resource.extract_code = row.extract_code;
+  }
+
+  if (row.meta) {
+    try {
+      resource.meta = typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta;
+    } catch { /* ignore */ }
   }
 
   return resource;
@@ -238,7 +246,8 @@ async function getResourceRows(whereSql = "", params: unknown[] = []) {
       extract_code,
       publish_status,
       published_at,
-      updated_at
+      updated_at,
+      meta
      FROM resources
      ${whereSql}
      ORDER BY updated_at DESC`,
@@ -261,7 +270,8 @@ async function getSingleResource(whereSql: string, params: unknown[]) {
       extract_code,
       publish_status,
       published_at,
-      updated_at
+      updated_at,
+      meta
      FROM resources
      ${whereSql}
      ORDER BY updated_at DESC
@@ -399,6 +409,7 @@ export async function saveResource(
       input.publish_status,
       toSqlDateTime(input.published_at),
       toSqlDateTime(now),
+      input.meta ? JSON.stringify(input.meta) : null,
     ];
 
     if (existingRows.length > 0) {
@@ -415,7 +426,8 @@ export async function saveResource(
           extract_code = ?,
           publish_status = ?,
           published_at = ?,
-          updated_at = ?
+          updated_at = ?,
+          meta = ?
          WHERE id = ?`,
         [
           input.title,
@@ -430,6 +442,7 @@ export async function saveResource(
           input.publish_status,
           toSqlDateTime(input.published_at),
           toSqlDateTime(now),
+          input.meta ? JSON.stringify(input.meta) : null,
           id,
         ]
       );
@@ -437,8 +450,8 @@ export async function saveResource(
       await connection.execute(
         `INSERT INTO resources (
           id, title, slug, summary, category, channel_id, category_id, cover, quark_url,
-          extract_code, publish_status, published_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          extract_code, publish_status, published_at, updated_at, meta
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         payload
       );
     }
@@ -708,7 +721,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
        ORDER BY channel_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
     queryRows<TopicRow>(
-      `SELECT id, category_id, name, slug, summary, sort_order, featured, status
+      `SELECT id, category_id, name, slug, summary, sort_order, featured, status, field_schema
        FROM topics
        ORDER BY category_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
@@ -753,6 +766,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       sort: row.sort_order,
       featured: Boolean(row.featured),
       status: row.status,
+      ...(row.field_schema ? { field_schema: typeof row.field_schema === "string" ? JSON.parse(row.field_schema) : row.field_schema } : {}),
     })),
   };
 }
@@ -965,15 +979,17 @@ export async function saveTopic(input: {
   sort_order?: number;
   featured?: boolean;
   status?: "active" | "hidden";
+  field_schema?: unknown;
 }): Promise<TopicNode> {
   const id = input.id || `topic_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const sort_order = input.sort_order ?? 0;
   const featured = input.featured ? 1 : 0;
   const status = input.status ?? "active";
+  const fieldSchemaJson = input.field_schema ? JSON.stringify(input.field_schema) : null;
 
   await execute(
-    `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status, field_schema)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        category_id = VALUES(category_id),
        name = VALUES(name),
@@ -981,8 +997,9 @@ export async function saveTopic(input: {
        summary = VALUES(summary),
        sort_order = VALUES(sort_order),
        featured = VALUES(featured),
-       status = VALUES(status)`,
-    [id, input.category_id, input.name, input.slug, input.summary || "", sort_order, featured, status]
+       status = VALUES(status),
+       field_schema = VALUES(field_schema)`,
+    [id, input.category_id, input.name, input.slug, input.summary || "", sort_order, featured, status, fieldSchemaJson]
   );
   return { id, category_id: input.category_id, name: input.name, slug: input.slug, summary: input.summary, sort: sort_order, featured: Boolean(featured), status };
 }

@@ -163,21 +163,20 @@ function computeChange(current: number, previous: number) {
 
 function buildPeriodConfigs(now = new Date()): Record<AnalyticsPeriod, PeriodConfig> {
   const nowMs = now.getTime() + LOCAL_OFFSET_MS;
-  const startOfCurrentHour = startOfHourMs(nowMs);
   const startOfToday = startOfDayMs(nowMs);
 
   return {
     day: {
       period: "day",
       label: "今日",
-      rangeLabel: "近 24 小时",
+      rangeLabel: "今日 0:00 - 24:00",
       granularityLabel: "按小时",
       bucketCount: 24,
       bucketSizeMs: HOUR_MS,
-      currentStartMs: startOfCurrentHour - 23 * HOUR_MS,
-      currentEndMs: startOfCurrentHour + HOUR_MS,
-      previousStartMs: startOfCurrentHour - 47 * HOUR_MS,
-      previousEndMs: startOfCurrentHour - 23 * HOUR_MS,
+      currentStartMs: startOfToday,
+      currentEndMs: startOfToday + DAY_MS,
+      previousStartMs: startOfToday - DAY_MS,
+      previousEndMs: startOfToday,
       toKey: hourKey,
       toLabel: hourLabel,
       toShortLabel: hourLabel,

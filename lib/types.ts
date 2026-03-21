@@ -1,5 +1,12 @@
 export type PublishStatus = "draft" | "published" | "offline";
 
+export interface TopicFieldSchema {
+  key: string;
+  label: string;
+  type: "select" | "text";
+  options?: string[];
+}
+
 export interface Resource {
   id: string;
   title: string;
@@ -16,6 +23,7 @@ export interface Resource {
   publish_status: PublishStatus;
   published_at: string;
   updated_at: string;
+  meta?: Record<string, string>;
 }
 
 export type TrackEventName =
@@ -106,6 +114,7 @@ export interface TopicNode {
   sort: number;
   featured?: boolean;
   status: "active" | "hidden";
+  field_schema?: TopicFieldSchema[];
 }
 
 export interface ContentStructure {

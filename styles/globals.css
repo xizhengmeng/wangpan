@@ -1605,7 +1605,7 @@ button, input, textarea, select { font: inherit; }
     width: 100%;
     margin-top: 0;
     padding: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     border-radius: 14px;
     background: #fff;
     box-shadow: none;
@@ -1679,10 +1679,6 @@ button, input, textarea, select { font: inherit; }
 }
 
 @media (max-width: 560px) {
-  .nav-submenu {
-    grid-template-columns: 1fr;
-  }
-
   .nav-submenu__link--card {
     min-height: auto;
   }
@@ -1850,7 +1846,7 @@ img {
   z-index: 30;
   width: min(420px, calc(100vw - 40px));
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--border);
@@ -5368,6 +5364,11 @@ img {
 }
 .adm-field { display: flex; flex-direction: column; gap: 5px; }
 .adm-field label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+.adm-field__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
 .adm-field input, .adm-field textarea, .adm-field select {
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -5382,6 +5383,7 @@ img {
 .adm-field input:focus, .adm-field textarea:focus, .adm-field select:focus { border-color: var(--brand); background: #fff; }
 .adm-field textarea { min-height: 90px; resize: vertical; }
 .adm-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.adm-field-row--triple { grid-template-columns: repeat(3, 1fr); }
 .admin-form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -6370,6 +6372,37 @@ img {
 .stree-action--del { color: #e53e3e; border-color: #fed7d7; background: #fff5f5; }
 .stree-action--del:hover { background: #fed7d7; border-color: #e53e3e; }
 
+/* Collapse toggle button */
+.stree-toggle {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+}
+.stree-toggle:hover { background: #eef1f5; border-color: var(--border); }
+.stree-toggle--sm { padding: 1px 4px; }
+.stree-chevron {
+  font-size: 12px;
+  display: inline-block;
+  transition: transform 0.18s ease;
+  line-height: 1;
+}
+.stree-chevron--collapsed { transform: rotate(-90deg); }
+.stree-toggle__count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 12px;
+  text-align: center;
+}
+
 /* Hint text (empty children) */
 .stree-hint {
   font-size: 11.5px;
@@ -6432,4 +6465,91 @@ img {
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+/* ── Topic filter panel (tf-*) ─────────────────────────────────────────────── */
+.tf-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tf-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.tf-label {
+  flex-shrink: 0;
+  width: 36px;
+  padding-top: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.tf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tf-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.tf-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+.tf-chip--active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.tf-chip--active:hover {
+  background: var(--primary-dark, #1d4ed8);
+  color: #fff;
+}
+.tf-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 4px 0;
+}
+
+/* ── Ghost button ───────────────────────────────────────────────────────────── */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-ghost:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+  background: var(--surface-alt, #f5f5f5);
 }

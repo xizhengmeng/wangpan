@@ -5,8 +5,8 @@ import { AdminResourcesClient } from "@/components/AdminResourcesClient";
 import { Seo } from "@/components/Seo";
 import { requireAdminAuth } from "@/lib/auth";
 import { AnalyticsPeriod, AnalyticsPeriodPoint } from "@/lib/analytics";
-import { getAllResources, getAnalyticsSummary, getFeedback } from "@/lib/store";
-import { Feedback, Resource } from "@/lib/types";
+import { getAllResources, getAnalyticsSummary, getContentStructure, getFeedback } from "@/lib/store";
+import { CategoryNode, Channel, Feedback, Resource, TopicNode } from "@/lib/types";
 
 interface RankedResource {
   resourceId: string;
@@ -37,6 +37,9 @@ interface AdminPageProps {
   resources: Resource[];
   overviewMetrics: Array<{ label: string; value: string }>;
   dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
+  initialChannels: Channel[];
+  initialCategories: CategoryNode[];
+  initialTopics: TopicNode[];
   feedbackItems: Feedback[];
 }
 
@@ -44,6 +47,9 @@ export default function AdminPage({
   resources,
   overviewMetrics,
   dashboardPeriods,
+  initialChannels,
+  initialCategories,
+  initialTopics,
   feedbackItems,
 }: AdminPageProps) {
   return (
@@ -58,6 +64,9 @@ export default function AdminPage({
         initialResources={resources}
         overviewMetrics={overviewMetrics}
         dashboardPeriods={dashboardPeriods}
+        initialChannels={initialChannels}
+        initialCategories={initialCategories}
+        initialTopics={initialTopics}
         initialFeedback={feedbackItems}
       />
     </>
@@ -66,10 +75,11 @@ export default function AdminPage({
 
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx) =>
   requireAdminAuth(ctx, async () => {
-  const [analytics, resources, feedback] = await Promise.all([
+  const [analytics, resources, feedback, structure] = await Promise.all([
     getAnalyticsSummary(),
     getAllResources(),
     getFeedback(),
+    getContentStructure(),
   ]);
 
   const resourceMap = new Map(resources.map((r) => [r.id, r]));
@@ -106,6 +116,9 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx
         { label: "无结果词", value: String(analytics.noResultQueries.length) },
       ],
       dashboardPeriods,
+      initialChannels: structure.channels,
+      initialCategories: structure.categories,
+      initialTopics: structure.topics,
       feedbackItems: feedback,
     },
   };

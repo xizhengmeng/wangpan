@@ -1,96 +1,15 @@
 import { GetServerSideProps } from "next";
-import Link from "next/link";
 
-import { Seo } from "@/components/Seo";
-import { ResourceCard } from "@/components/ResourceCard";
-import { absoluteUrl } from "@/lib/site";
+import { getTopicLayout } from "@/components/topicLayouts";
+import type { TopicLayoutProps } from "@/components/topicLayouts";
 import { getContentStructure, getResourcesByTopicId, getTopicBySlug } from "@/lib/store";
-import { Resource } from "@/lib/types";
 
-interface TopicPageProps {
-  topic: {
-    id: string;
-    name: string;
-    slug: string;
-    summary: string;
-  };
-  categoryName: string;
-  categorySlug: string;
-  channelName: string;
-  channelSlug: string;
-  resources: Resource[];
+export default function TopicPage(props: TopicLayoutProps) {
+  const Layout = getTopicLayout(props.topic.slug);
+  return <Layout {...props} />;
 }
 
-export default function TopicPage({ topic, categoryName, categorySlug, channelName, channelSlug, resources }: TopicPageProps) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: topic.name,
-    description: topic.summary,
-    url: absoluteUrl(`/topic/${topic.slug}`)
-  };
-
-  return (
-    <>
-      <Seo title={`${topic.name} 专题`} description={topic.summary} path={`/topic/${topic.slug}`} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-
-      <div className="page-shell">
-        <div className="container">
-          {/* Breadcrumb */}
-          <nav className="breadcrumb">
-            <Link href="/">首页</Link>
-            <span className="breadcrumb__sep">›</span>
-            {channelName && channelSlug && (
-              <>
-                <Link href={`/channel/${channelSlug}`}>{channelName}</Link>
-                <span className="breadcrumb__sep">›</span>
-              </>
-            )}
-            {categoryName && categorySlug && (
-              <>
-                <Link href={`/category/${categorySlug}`}>{categoryName}</Link>
-                <span className="breadcrumb__sep">›</span>
-              </>
-            )}
-            <span>{topic.name}</span>
-          </nav>
-
-          <section className="page-hero panel">
-            <span className="eyebrow">资料专题</span>
-            <h1 className="page-title">{topic.name}</h1>
-            <p className="page-copy">{topic.summary}</p>
-            <div className="chip-row" style={{ marginTop: 14 }}>
-              <Link className="chip" href={channelSlug ? `/channel/${channelSlug}` : `/search?q=${encodeURIComponent(channelName)}`}>{channelName}</Link>
-              <Link className="chip" href={categorySlug ? `/category/${categorySlug}` : `/search?q=${encodeURIComponent(categoryName)}`}>{categoryName}</Link>
-              <span className="chip">{resources.length} 条资源</span>
-            </div>
-          </section>
-
-          <section className="section">
-            {resources.length > 0 ? (
-              <div className="card-grid">
-                {resources.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
-                ))}
-              </div>
-            ) : (
-              <div className="panel empty-state">
-                <strong>这个专题结构已经建好，但资源还没补齐。</strong>
-                <p className="muted">后续可以直接在后台把资源挂到这个专题下面。</p>
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
-    </>
-  );
-}
-
-export const getServerSideProps: GetServerSideProps<TopicPageProps> = async ({ params }) => {
+export const getServerSideProps: GetServerSideProps<TopicLayoutProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const topic = await getTopicBySlug(slug);
 
