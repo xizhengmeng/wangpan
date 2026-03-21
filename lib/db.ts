@@ -21,6 +21,7 @@ const requiredColumns: Record<string, Record<string, string>> = {
     short_link: "VARCHAR(255) NOT NULL",
     positioning: "TEXT NOT NULL",
     featured_message: "VARCHAR(255) NULL",
+    hot_searches: "TEXT NULL",
     updated_at: "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
   },
   channels: {
@@ -271,6 +272,7 @@ async function seedStructureIfEmpty() {
       short_link?: string;
       positioning?: string;
       featured_message?: string;
+      hot_searches?: string[];
     };
     channels?: Array<{
       id: string;
@@ -311,7 +313,7 @@ async function seedStructureIfEmpty() {
     if (structure.site_profile) {
       await connection.execute(
         `UPDATE site_profile
-         SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?
+         SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?, hot_searches = ?
          WHERE id = 1`,
         [
           structure.site_profile.name || "夸克网盘资料",
@@ -319,6 +321,7 @@ async function seedStructureIfEmpty() {
           structure.site_profile.short_link || "",
           structure.site_profile.positioning || "通过数据库驱动频道、栏目、专题和资源。",
           structure.site_profile.featured_message || null,
+          structure.site_profile.hot_searches ? JSON.stringify(structure.site_profile.hot_searches) : null,
         ]
       );
     }

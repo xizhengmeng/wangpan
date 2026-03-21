@@ -4,7 +4,8 @@
     "tagline": "全网精选夸克网盘资料导航与整理站",
     "short_link": "https://link3.cc/xiaokuangren",
     "positioning": "以整理型页面为主、低风险下载资源为辅的资料搜索站",
-    "featured_message": "新人转存立即扩容"
+    "featured_message": "新人转存立即扩容",
+    "hot_searches": ["考研", "PPT 模板", "Python", "英语四六级", "Excel", "简历模板"]
   },
   "channels": [
     {

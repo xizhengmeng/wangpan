@@ -5,7 +5,7 @@ import { SearchBox } from "@/components/SearchBox";
 import { SearchRecorder } from "@/components/SearchRecorder";
 import { Seo } from "@/components/Seo";
 import { TrackedLink } from "@/components/TrackedLink";
-import { formatDate, slugify } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { runSearch } from "@/lib/store";
 import { SearchResponse } from "@/lib/types";
 
@@ -47,34 +47,24 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
               <div className="result-list">
                 {items.map((item, index) => (
                   <article className="result-row" key={item.id}>
-                    <img src={item.cover} alt={item.title} loading="lazy" />
-                    <div>
-                      <div className="meta-row">
-                        <span className="meta-pill">{item.category}</span>
-                        <span className="meta-pill">更新于 {formatDate(item.updated_at)}</span>
-                      </div>
-                      <h3>
-                        <TrackedLink
-                          href={`/resource/${item.slug}`}
-                          eventName="search_result_click"
-                          payload={{
-                            query,
-                            resource_id: item.id,
-                            result_rank: (page - 1) * pageSize + index + 1
-                          }}
-                        >
-                          {item.title}
-                        </TrackedLink>
-                      </h3>
-                      <p className="muted">{item.summary}</p>
-                      <div className="tag-cloud">
-                        {item.tags.map((tag) => (
-                          <Link className="tag" href={`/tag/${slugify(tag)}`} key={tag}>
-                            {tag}
-                          </Link>
-                        ))}
-                      </div>
+                    <div className="result-row__meta">
+                      <span className="result-row__category">{item.category}</span>
+                      <span>更新于 {formatDate(item.updated_at)}</span>
                     </div>
+                    <h3>
+                      <TrackedLink
+                        href={`/resource/${item.slug}`}
+                        eventName="search_result_click"
+                        payload={{
+                          query,
+                          resource_id: item.id,
+                          result_rank: (page - 1) * pageSize + index + 1
+                        }}
+                      >
+                        {item.title}
+                      </TrackedLink>
+                    </h3>
+                    <p className="result-row__summary">{item.summary}</p>
                   </article>
                 ))}
               </div>

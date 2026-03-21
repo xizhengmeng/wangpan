@@ -37,6 +37,14 @@ interface AdminPageProps {
   resources: Resource[];
   overviewMetrics: Array<{ label: string; value: string }>;
   dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
+  siteProfile: {
+    name: string;
+    tagline: string;
+    short_link: string;
+    positioning: string;
+    featured_message?: string;
+    hot_searches?: string[];
+  };
   initialChannels: Channel[];
   initialCategories: CategoryNode[];
   initialTopics: TopicNode[];
@@ -47,6 +55,7 @@ export default function AdminPage({
   resources,
   overviewMetrics,
   dashboardPeriods,
+  siteProfile,
   initialChannels,
   initialCategories,
   initialTopics,
@@ -64,6 +73,7 @@ export default function AdminPage({
         initialResources={resources}
         overviewMetrics={overviewMetrics}
         dashboardPeriods={dashboardPeriods}
+        siteProfile={siteProfile}
         initialChannels={initialChannels}
         initialCategories={initialCategories}
         initialTopics={initialTopics}
@@ -116,6 +126,7 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx
         { label: "无结果词", value: String(analytics.noResultQueries.length) },
       ],
       dashboardPeriods,
+      siteProfile: structure.site_profile,
       initialChannels: structure.channels,
       initialCategories: structure.categories,
       initialTopics: structure.topics,

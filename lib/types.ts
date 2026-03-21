@@ -124,6 +124,7 @@ export interface ContentStructure {
     short_link: string;
     positioning: string;
     featured_message?: string;
+    hot_searches?: string[];
   };
   channels: Channel[];
   categories: CategoryNode[];

@@ -63,20 +63,22 @@ try {
   await connection.execute('DELETE FROM feedback');
 
   await connection.execute(
-    `INSERT INTO site_profile (id, name, tagline, short_link, positioning, featured_message)
-     VALUES (1, ?, ?, ?, ?, ?)
+    `INSERT INTO site_profile (id, name, tagline, short_link, positioning, featured_message, hot_searches)
+     VALUES (1, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        name = VALUES(name),
        tagline = VALUES(tagline),
        short_link = VALUES(short_link),
        positioning = VALUES(positioning),
-       featured_message = VALUES(featured_message)`,
+       featured_message = VALUES(featured_message),
+       hot_searches = VALUES(hot_searches)`,
     [
       structure.site_profile.name,
       structure.site_profile.tagline,
       structure.site_profile.short_link,
       structure.site_profile.positioning,
       structure.site_profile.featured_message || null,
+      structure.site_profile.hot_searches ? JSON.stringify(structure.site_profile.hot_searches) : null,
     ]
   );
 

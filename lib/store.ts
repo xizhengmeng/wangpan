@@ -54,6 +54,7 @@ type SiteProfileRow = RowDataPacket & {
   short_link: string;
   positioning: string;
   featured_message: string | null;
+  hot_searches: string | null;
 };
 
 type ChannelRow = RowDataPacket & {
@@ -130,6 +131,26 @@ function toIsoString(value: string | Date) {
 
 function toSqlDateTime(value: string | Date) {
   return new Date(value).toISOString().slice(0, 19).replace("T", " ");
+}
+
+function parseHotSearches(value: string | null | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item).trim()).filter(Boolean);
+    }
+  } catch {
+    return value
+      .split(/\r?\n|,|，/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 function mapResourceRow(
@@ -708,7 +729,8 @@ export async function runSearch(query: string, page = 1): Promise<SearchResponse
 export async function getContentStructure(): Promise<ContentStructure> {
   const [siteProfileRows, channelRows, categoryRows, topicRows] = await Promise.all([
     queryRows<SiteProfileRow>(
-      `SELECT name, tagline, short_link, positioning, featured_message FROM site_profile WHERE id = 1 LIMIT 1`
+      `SELECT name, tagline, short_link, positioning, featured_message, hot_searches
+       FROM site_profile WHERE id = 1 LIMIT 1`
     ),
     queryRows<ChannelRow>(
       `SELECT id, name, slug, description, sort_order, featured, status
@@ -736,6 +758,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       short_link: siteProfile?.short_link || "",
       positioning: siteProfile?.positioning || "通过数据库驱动频道、栏目、专题和资源。",
       ...(siteProfile?.featured_message ? { featured_message: siteProfile.featured_message } : {}),
+      ...(siteProfile?.hot_searches ? { hot_searches: parseHotSearches(siteProfile.hot_searches) } : {}),
     },
     channels: channelRows.map<Channel>((row) => ({
       id: row.id,
@@ -769,6 +792,32 @@ export async function getContentStructure(): Promise<ContentStructure> {
       ...(row.field_schema ? { field_schema: typeof row.field_schema === "string" ? JSON.parse(row.field_schema) : row.field_schema } : {}),
     })),
   };
+}
+
+export async function saveSiteProfile(input: {
+  name: string;
+  tagline: string;
+  short_link: string;
+  positioning: string;
+  featured_message?: string;
+  hot_searches?: string[];
+}) {
+  await execute(
+    `UPDATE site_profile
+     SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?, hot_searches = ?
+     WHERE id = 1`,
+    [
+      input.name,
+      input.tagline,
+      input.short_link,
+      input.positioning,
+      input.featured_message || null,
+      input.hot_searches && input.hot_searches.length > 0 ? JSON.stringify(input.hot_searches) : null,
+    ]
+  );
+
+  const structure = await getContentStructure();
+  return structure.site_profile;
 }
 
 export async function getFeaturedChannels() {

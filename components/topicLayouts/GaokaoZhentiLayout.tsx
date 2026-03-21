@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 
-import { ResourceCard } from "@/components/ResourceCard";
+import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
 import { absoluteUrl } from "@/lib/site";
 import type { TopicLayoutProps } from "./types";
@@ -186,11 +186,7 @@ export default function GaokaoZhentiLayout({
             </div>
 
             {filtered.length > 0 ? (
-              <div className="card-grid">
-                {filtered.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
-                ))}
-              </div>
+              <ResourceListCompact items={filtered} />
             ) : (
               <div className="panel empty-state">
                 <strong>没有符合条件的资源。</strong>

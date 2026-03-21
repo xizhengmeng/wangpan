@@ -1,6 +1,6 @@
 import { GetServerSideProps } from "next";
 
-import { ResourceCard } from "@/components/ResourceCard";
+import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
 import { slugify } from "@/lib/format";
 import { getResourcesByTagSlug } from "@/lib/store";
@@ -28,11 +28,7 @@ export default function TagPage({ tagName, slug, items }: TagPageProps) {
           </section>
 
           <section className="section">
-            <div className="card-grid">
-              {items.map((resource) => (
-                <ResourceCard key={resource.id} resource={resource} />
-              ))}
-            </div>
+            <ResourceListCompact items={items} />
           </section>
         </div>
       </div>

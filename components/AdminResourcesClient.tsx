@@ -5,10 +5,10 @@ import { useRouter } from "next/router";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { AnalyticsPeriod, AnalyticsPeriodPoint } from "@/lib/analytics";
-import { CategoryNode, Channel, Feedback, Resource, TopicNode } from "@/lib/types";
+import { CategoryNode, Channel, ContentStructure, Feedback, Resource, TopicNode } from "@/lib/types";
 
 type Tab = "dashboard" | "resources" | "form" | "import" | "feedback" | "structure";
-type StructurePanel = null | "channel" | "category" | "topic";
+type StructurePanel = null | "site" | "channel" | "category" | "topic";
 
 interface RankedResource { resourceId: string; title: string; slug: string; count: number }
 
@@ -34,6 +34,7 @@ interface AdminResourcesClientProps {
   initialResources: Resource[];
   overviewMetrics: Array<{ label: string; value: string }>;
   dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
+  siteProfile: ContentStructure["site_profile"];
   initialChannels: Channel[];
   initialCategories: CategoryNode[];
   initialTopics: TopicNode[];
@@ -158,6 +159,7 @@ export function AdminResourcesClient({
   initialResources,
   overviewMetrics,
   dashboardPeriods,
+  siteProfile,
   initialChannels,
   initialCategories,
   initialTopics,
@@ -183,6 +185,14 @@ export function AdminResourcesClient({
   const [structureLoaded, setStructureLoaded] = useState(true);
   const [collapsedChannels, setCollapsedChannels] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [siteProfileForm, setSiteProfileForm] = useState({
+    name: siteProfile.name,
+    tagline: siteProfile.tagline,
+    short_link: siteProfile.short_link,
+    positioning: siteProfile.positioning,
+    featured_message: siteProfile.featured_message || "",
+    hot_searches: (siteProfile.hot_searches || []).join("\n"),
+  });
   const [channelForm, setChannelForm] = useState(emptyChannelForm);
 
   function toggleChannel(id: string) {
@@ -206,7 +216,15 @@ export function AdminResourcesClient({
   const loadStructure = useCallback(async () => {
     const res = await fetch("/api/admin/structure");
     if (!res.ok) return;
-    const data = await res.json() as { channels: Channel[]; categories: CategoryNode[]; topics: TopicNode[] };
+    const data = await res.json() as ContentStructure;
+    setSiteProfileForm({
+      name: data.site_profile.name,
+      tagline: data.site_profile.tagline,
+      short_link: data.site_profile.short_link,
+      positioning: data.site_profile.positioning,
+      featured_message: data.site_profile.featured_message || "",
+      hot_searches: (data.site_profile.hot_searches || []).join("\n"),
+    });
     setChannels(data.channels);
     setCategories(data.categories);
     setTopics(data.topics);
@@ -434,7 +452,7 @@ export function AdminResourcesClient({
   }
 
   /* ── Structure handlers ── */
-  async function handleSaveStructure(type: "channel" | "category" | "topic", data: Record<string, unknown>) {
+  async function handleSaveStructure(type: "site_profile" | "channel" | "category" | "topic", data: Record<string, unknown>) {
     let payload: Record<string, unknown> = { type, ...data };
     // parse field_schema JSON string before sending
     if (type === "topic" && typeof data.field_schema === "string") {
@@ -943,6 +961,13 @@ export function AdminResourcesClient({
                 <p className="adm-page__desc">频道 → 栏目 → 专题，三级从属结构</p>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="adm-btn adm-btn--sm"
+                  onClick={() => setStructurePanel("site")}
+                >
+                  站点配置
+                </button>
                 <button type="button" className="adm-btn adm-btn--sm"
                   onClick={() => {
                     const allCh = new Set(channels.map((c) => c.id));
@@ -986,7 +1011,7 @@ export function AdminResourcesClient({
                           <span className="stree-row__name">{ch.name}</span>
                           <span className="stree-row__slug">{ch.slug}</span>
                           {ch.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
-                          {ch.featured && <span className="stree-tag stree-tag--featured">精选</span>}
+                          {ch.featured && <span className="stree-tag stree-tag--featured">热门</span>}
                         </div>
                         <div className="stree-row__actions">
                           <button type="button" className="stree-action stree-action--add"
@@ -1071,6 +1096,64 @@ export function AdminResourcesClient({
               {/* ── 右侧表单面板 ── */}
               {structurePanel !== null && (
                 <div className="stree-panel">
+                  {structurePanel === "site" && (
+                    <>
+                      <div className="stree-panel__head">
+                        <span className="stree-panel__icon">⚙️</span>
+                        <span className="stree-panel__title">站点配置</span>
+                        <button type="button" className="stree-panel__close" onClick={() => setStructurePanel(null)}>✕</button>
+                      </div>
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          await handleSaveStructure("site_profile", {
+                            ...siteProfileForm,
+                            hot_searches: siteProfileForm.hot_searches
+                              .split(/\r?\n|,|，/)
+                              .map((item) => item.trim())
+                              .filter(Boolean),
+                          });
+                          setStructurePanel(null);
+                        }}
+                      >
+                        <div className="adm-field">
+                          <label>站点名称</label>
+                          <input value={siteProfileForm.name} onChange={(e) => setSiteProfileForm((current) => ({ ...current, name: e.target.value }))} />
+                        </div>
+                        <div className="adm-field">
+                          <label>站点副标题</label>
+                          <input value={siteProfileForm.tagline} onChange={(e) => setSiteProfileForm((current) => ({ ...current, tagline: e.target.value }))} />
+                        </div>
+                        <div className="adm-field">
+                          <label>站点定位</label>
+                          <textarea rows={3} value={siteProfileForm.positioning} onChange={(e) => setSiteProfileForm((current) => ({ ...current, positioning: e.target.value }))} />
+                        </div>
+                        <div className="adm-field">
+                          <label>首页提示语</label>
+                          <input value={siteProfileForm.featured_message} onChange={(e) => setSiteProfileForm((current) => ({ ...current, featured_message: e.target.value }))} />
+                        </div>
+                        <div className="adm-field">
+                          <label>热门搜索</label>
+                          <textarea
+                            rows={6}
+                            value={siteProfileForm.hot_searches}
+                            onChange={(e) => setSiteProfileForm((current) => ({ ...current, hot_searches: e.target.value }))}
+                            placeholder={"考研\nPPT 模板\nPython"}
+                          />
+                          <small className="adm-field__hint">每行一个词，也支持逗号分隔。首页热门搜索会优先使用这里的配置。</small>
+                        </div>
+                        <div className="adm-field">
+                          <label>热门频道说明</label>
+                          <small className="adm-field__hint">首页热门频道直接读取频道上的“热门频道（首页展示）”开关，这里无需重复配置。</small>
+                        </div>
+                        <div className="admin-form-actions">
+                          <button className="adm-btn adm-btn--primary" type="submit">保存</button>
+                          <button className="adm-btn" type="button" onClick={() => setStructurePanel(null)}>取消</button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+
                   {structurePanel === "channel" && (
                     <>
                       <div className="stree-panel__head">
@@ -1095,7 +1178,7 @@ export function AdminResourcesClient({
                         </div>
                         <div className="adm-field adm-field--check"><label>
                           <input type="checkbox" checked={channelForm.featured} onChange={(e) => setChannelForm((c) => ({ ...c, featured: e.target.checked }))} />
-                          设为精选频道（首页展示）
+                          设为热门频道（首页展示）
                         </label></div>
                         <div className="admin-form-actions">
                           <button className="adm-btn adm-btn--primary" type="submit">保存</button>
@@ -1204,7 +1287,7 @@ export function AdminResourcesClient({
                         </div>
                         <div className="adm-field adm-field--check"><label>
                           <input type="checkbox" checked={topicForm.featured} onChange={(e) => setTopicForm((c) => ({ ...c, featured: e.target.checked }))} />
-                          设为精选专题（显示在首页）
+                          设为精选专题
                         </label></div>
                         <div className="admin-form-actions">
                           <button className="adm-btn adm-btn--primary" type="submit">保存</button>

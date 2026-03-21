@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ResourceCard } from "@/components/ResourceCard";
+import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
 import { absoluteUrl } from "@/lib/site";
 import type { TopicLayoutProps } from "./types";
@@ -72,11 +72,7 @@ export default function DefaultTopicLayout({
 
           <section className="section">
             {resources.length > 0 ? (
-              <div className="card-grid">
-                {resources.map((resource) => (
-                  <ResourceCard key={resource.id} resource={resource} />
-                ))}
-              </div>
+              <ResourceListCompact items={resources} />
             ) : (
               <div className="panel empty-state">
                 <strong>这个专题结构已经建好，但资源还没补齐。</strong>

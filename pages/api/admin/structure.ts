@@ -8,6 +8,7 @@ import {
   getContentStructure,
   saveCategory,
   saveChannel,
+  saveSiteProfile,
   saveTopic,
 } from "@/lib/store";
 
@@ -28,7 +29,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "POST" || req.method === "PUT") {
-    const { type, ...data } = req.body as { type: "channel" | "category" | "topic"; [key: string]: unknown };
+    const { type, ...data } = req.body as { type: "site_profile" | "channel" | "category" | "topic"; [key: string]: unknown };
+
+    if (type === "site_profile") {
+      const result = await saveSiteProfile(data as Parameters<typeof saveSiteProfile>[0]);
+      return res.status(200).json(result);
+    }
 
     if (type === "channel") {
       const result = await saveChannel(data as Parameters<typeof saveChannel>[0]);

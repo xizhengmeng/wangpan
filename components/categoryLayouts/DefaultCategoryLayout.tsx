@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ResourceCard } from "@/components/ResourceCard";
+import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
 import type { CategoryLayoutProps } from "./types";
 
@@ -82,11 +82,7 @@ export default function DefaultCategoryLayout({
                 <p className="section-subtitle">共 {items.length} 条</p>
               </div>
             </div>
-            <div className="card-grid">
-              {items.map((resource) => (
-                <ResourceCard key={resource.id} resource={resource} />
-              ))}
-            </div>
+            <ResourceListCompact items={items} />
           </section>
         </div>
       </div>
