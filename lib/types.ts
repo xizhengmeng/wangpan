@@ -58,3 +58,16 @@ export interface CsvImportResult {
     reason: string;
   }>;
 }
+
+export type FeedbackReason = "expired" | "wrong_file" | "extract_error" | "other";
+
+export interface Feedback {
+  id: string;
+  resource_id: string;
+  resource_title: string;
+  resource_slug: string;
+  reason: FeedbackReason;
+  note?: string;
+  created_at: string;
+  resolved: boolean;
+}

@@ -1,20 +1,41 @@
 "use client";
 
+import Link from "next/link";
 import { ChangeEvent, FormEvent, useMemo, useState, useTransition } from "react";
 
-import { Resource } from "@/lib/types";
+import { Feedback, Resource } from "@/lib/types";
 
-interface AnalyticsItem {
-  label: string;
-  value: string;
-}
+type Tab = "dashboard" | "resources" | "form" | "import" | "feedback";
+
+interface TopResource { resourceId: string; title: string; slug: string; count: number }
+interface LowConversionResource { resourceId: string; title: string; slug: string; detailViews: number; downloads: number }
 
 interface AdminResourcesClientProps {
   initialResources: Resource[];
-  metrics: AnalyticsItem[];
+  metrics: Array<{ label: string; value: string }>;
   topQueries: Array<{ query: string; count: number }>;
   noResultQueries: Array<{ query: string; count: number }>;
+  topResources: TopResource[];
+  lowConversionResources: LowConversionResource[];
+  initialFeedback: Feedback[];
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "草稿",
+  published: "已发布",
+  offline: "已下线",
+};
+const STATUS_COLORS: Record<string, string> = {
+  draft: "#faad14",
+  published: "#52c41a",
+  offline: "#8c8c8c",
+};
+const FEEDBACK_REASON_LABELS: Record<string, string> = {
+  expired: "链接失效",
+  wrong_file: "文件错误",
+  extract_error: "提取码错误",
+  other: "其他",
+};
 
 const emptyForm = {
   id: "",
@@ -27,48 +48,58 @@ const emptyForm = {
   quark_url: "",
   extract_code: "",
   publish_status: "draft",
-  published_at: new Date().toISOString().slice(0, 16)
+  published_at: new Date().toISOString().slice(0, 16),
 };
 
 export function AdminResourcesClient({
   initialResources,
   metrics,
   topQueries,
-  noResultQueries
+  noResultQueries,
+  topResources,
+  lowConversionResources,
+  initialFeedback,
 }: AdminResourcesClientProps) {
+  const [tab, setTab] = useState<Tab>("dashboard");
   const [resources, setResources] = useState(initialResources);
   const [form, setForm] = useState(emptyForm);
   const [csv, setCsv] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [titleSearch, setTitleSearch] = useState("");
+  const [feedback, setFeedback] = useState(initialFeedback);
 
   const sortedResources = useMemo(
     () =>
       [...resources].sort(
-        (a, b) =>
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       ),
     [resources]
   );
 
-  function handleInputChange(
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) {
-    const { name, value } = event.target;
-    setForm((current) => ({
-      ...current,
-      [name]: value
-    }));
-  }
+  const filteredResources = useMemo(() => {
+    return sortedResources.filter((r) => {
+      if (statusFilter !== "all" && r.publish_status !== statusFilter) return false;
+      if (titleSearch && !r.title.toLowerCase().includes(titleSearch.toLowerCase())) return false;
+      return true;
+    });
+  }, [sortedResources, statusFilter, titleSearch]);
 
-  function resetForm() {
-    setForm(emptyForm);
+  function notify(type: "ok" | "err", text: string) {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 4000);
   }
 
   async function refreshResources() {
-    const response = await fetch("/api/admin/resources");
-    const data = (await response.json()) as { items: Resource[] };
+    const res = await fetch("/api/admin/resources");
+    const data = (await res.json()) as { items: Resource[] };
     setResources(data.items);
+  }
+
+  function handleInputChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+    const { name, value } = e.target;
+    setForm((c) => ({ ...c, [name]: value }));
   }
 
   function handleEdit(resource: Resource) {
@@ -83,349 +114,398 @@ export function AdminResourcesClient({
       quark_url: resource.quark_url,
       extract_code: resource.extract_code || "",
       publish_status: resource.publish_status,
-      published_at: resource.published_at.slice(0, 16)
+      published_at: resource.published_at.slice(0, 16),
     });
+    setTab("form");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMessage(null);
     startTransition(async () => {
       const payload = {
         ...form,
-        tags: form.tags
-          .split(/[|,，]/)
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        published_at: new Date(form.published_at).toISOString()
+        tags: form.tags.split(/[|,，]/).map((t) => t.trim()).filter(Boolean),
+        published_at: new Date(form.published_at).toISOString(),
       };
       const method = form.id ? "PUT" : "POST";
       const url = form.id ? `/api/admin/resources/${form.id}` : "/api/admin/resources";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error || "保存失败");
-        return;
-      }
-
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) { notify("err", data.error || "保存失败"); return; }
       await refreshResources();
-      resetForm();
-      setMessage("资源已保存");
+      setForm(emptyForm);
+      notify("ok", form.id ? "资源已更新" : "资源已新增");
+      setTab("resources");
+    });
+  }
+
+  function handleQuickStatus(id: string, status: "published" | "offline") {
+    startTransition(async () => {
+      const resource = resources.find((r) => r.id === id);
+      if (!resource) return;
+      const res = await fetch(`/api/admin/resources/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...resource, publish_status: status }),
+      });
+      if (!res.ok) { notify("err", "状态更新失败"); return; }
+      await refreshResources();
+      notify("ok", status === "offline" ? "已下线" : "已发布");
     });
   }
 
   function handleDelete(id: string) {
+    if (!confirm("确认删除？此操作不可撤销。")) return;
     startTransition(async () => {
-      const response = await fetch(`/api/admin/resources/${id}`, {
-        method: "DELETE"
-      });
-
-      if (!response.ok) {
-        setMessage("删除失败");
-        return;
-      }
-
+      const res = await fetch(`/api/admin/resources/${id}`, { method: "DELETE" });
+      if (!res.ok) { notify("err", "删除失败"); return; }
       await refreshResources();
-      setMessage("资源已删除");
+      notify("ok", "资源已删除");
     });
   }
 
-  function handleFileUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+  function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setCsv(String(reader.result || ""));
-    };
+    reader.onload = () => setCsv(String(reader.result || ""));
     reader.readAsText(file);
   }
 
   function handleImport() {
     startTransition(async () => {
-      const response = await fetch("/api/admin/resources/import", {
+      const res = await fetch("/api/admin/resources/import", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          csv,
-          mode: "upsert"
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv, mode: "upsert" }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        setMessage(data.error || "导入失败");
-        return;
-      }
-
+      const data = await res.json();
+      if (!res.ok) { notify("err", data.error || "导入失败"); return; }
       await refreshResources();
-      setMessage(
-        `导入完成：成功 ${data.successCount} 条，失败 ${data.failureCount} 条`
-      );
+      const msg = `导入完成：成功 ${data.successCount} 条，失败 ${data.failureCount} 条`;
+      notify(data.failureCount > 0 ? "err" : "ok", msg);
     });
   }
 
-  return (
-    <div className="page-shell">
-      <div className="container">
-        <section className="page-hero panel">
-          <span className="eyebrow">运营后台</span>
-          <h1 className="page-title">资源管理与需求洞察</h1>
-          <p className="page-copy">
-            这里不是简单的增删改，而是把搜索词、点击和下载行为都转成可用的内容决策。
-          </p>
-        </section>
+  async function handleResolveFeedback(id: string) {
+    const res = await fetch("/api/admin/feedback", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) { notify("err", "操作失败"); return; }
+    setFeedback((prev) => prev.map((f) => f.id === id ? { ...f, resolved: true } : f));
+  }
 
-        <div className="metrics-grid">
-          {metrics.map((metric) => (
-            <div className="metric-card" key={metric.label}>
-              <strong>{metric.value}</strong>
-              <span>{metric.label}</span>
-            </div>
+  const TABS: { key: Tab; label: string; badge?: number }[] = [
+    { key: "dashboard", label: "📊 统计看板" },
+    { key: "resources", label: "📦 资源管理", badge: resources.length },
+    { key: "form", label: form.id ? "✏️ 编辑资源" : "➕ 新增资源" },
+    { key: "import", label: "📤 批量导入" },
+    { key: "feedback", label: "🚨 失效反馈", badge: feedback.filter((f) => !f.resolved).length },
+  ];
+
+  return (
+    <div className="admin-shell">
+      {/* Header */}
+      <div className="admin-header">
+        <div className="admin-header__inner">
+          <div>
+            <h1 className="admin-header__title">运营后台</h1>
+            <p className="admin-header__sub">资源管理 · 统计看板 · 失效反馈</p>
+          </div>
+          <Link href="/" className="admin-header__back">← 回到前台</Link>
+        </div>
+
+        {/* Tab nav */}
+        <div className="admin-tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              className={`admin-tab${tab === t.key ? " admin-tab--active" : ""}`}
+              onClick={() => setTab(t.key)}
+              type="button"
+            >
+              {t.label}
+              {t.badge !== undefined && t.badge > 0 && (
+                <span className="admin-tab__badge">{t.badge}</span>
+              )}
+            </button>
           ))}
         </div>
+      </div>
 
-        <div className="admin-layout section">
-          <div className="admin-grid">
-            <section className="admin-card">
-              <div className="section-head">
-                <div>
-                  <h2 className="section-title">资源列表</h2>
-                  <p className="section-subtitle">支持编辑、删除和状态维护。</p>
+      {/* Toast */}
+      {message && (
+        <div className={`admin-toast admin-toast--${message.type}`}>{message.text}</div>
+      )}
+
+      <div className="admin-body">
+        {/* ─── 统计看板 ─────────────────────────────── */}
+        {tab === "dashboard" && (
+          <div className="admin-dashboard">
+            <div className="admin-metrics">
+              {metrics.map((m) => (
+                <div className="admin-metric-card" key={m.label}>
+                  <strong>{m.value}</strong>
+                  <span>{m.label}</span>
                 </div>
+              ))}
+            </div>
+
+            <div className="admin-dashboard__grid">
+              <div className="admin-panel">
+                <div className="admin-panel__title">高频搜索词</div>
+                {topQueries.length > 0 ? topQueries.map((item) => (
+                  <div className="admin-rank-row" key={item.query}>
+                    <span className="admin-rank-row__label">{item.query}</span>
+                    <span className="admin-rank-row__count">{item.count}</span>
+                  </div>
+                )) : <p className="admin-empty">暂无数据</p>}
               </div>
 
-              <div className="admin-table">
-                {sortedResources.map((resource) => (
-                  <div className="admin-row" key={resource.id}>
-                    <div>
-                      <div className="meta-row">
-                        <span className="meta-pill">{resource.category}</span>
-                        <span className="meta-pill">{resource.publish_status}</span>
-                      </div>
-                      <h3>{resource.title}</h3>
-                      <p className="muted">{resource.summary}</p>
-                    </div>
-                    <div className="action-row">
-                      <button
-                        className="button button-secondary"
-                        type="button"
-                        onClick={() => handleEdit(resource)}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        className="button button-warning"
-                        type="button"
-                        onClick={() => handleDelete(resource.id)}
-                      >
-                        删除
-                      </button>
-                    </div>
+              <div className="admin-panel">
+                <div className="admin-panel__title">无结果搜索词 <small>→ 需要补库</small></div>
+                {noResultQueries.length > 0 ? noResultQueries.map((item) => (
+                  <div className="admin-rank-row admin-rank-row--warn" key={item.query}>
+                    <span className="admin-rank-row__label">{item.query}</span>
+                    <span className="admin-rank-row__count">{item.count}</span>
                   </div>
+                )) : <p className="admin-empty">暂无数据</p>}
+              </div>
+
+              <div className="admin-panel">
+                <div className="admin-panel__title">高点击资源排行</div>
+                {topResources.length > 0 ? topResources.map((item) => (
+                  <div className="admin-rank-row" key={item.resourceId}>
+                    <Link href={`/resource/${item.slug}`} className="admin-rank-row__label admin-rank-row__link">{item.title}</Link>
+                    <span className="admin-rank-row__count">{item.count} 次</span>
+                  </div>
+                )) : <p className="admin-empty">暂无点击数据</p>}
+              </div>
+
+              <div className="admin-panel">
+                <div className="admin-panel__title">高点击低转化 <small>→ 需优化下载入口</small></div>
+                {lowConversionResources.length > 0 ? lowConversionResources.map((item) => (
+                  <div className="admin-rank-row" key={item.resourceId}>
+                    <Link href={`/resource/${item.slug}`} className="admin-rank-row__label admin-rank-row__link">{item.title}</Link>
+                    <span className="admin-rank-row__count">{item.detailViews}浏 / {item.downloads}下</span>
+                  </div>
+                )) : <p className="admin-empty">暂无数据</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 资源管理 ─────────────────────────────── */}
+        {tab === "resources" && (
+          <div className="admin-resources">
+            <div className="admin-filter-bar">
+              <input
+                className="admin-filter-input"
+                placeholder="搜索标题..."
+                value={titleSearch}
+                onChange={(e) => setTitleSearch(e.target.value)}
+              />
+              <div className="admin-filter-tabs">
+                {["all", "published", "draft", "offline"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`admin-filter-tab${statusFilter === s ? " admin-filter-tab--active" : ""}`}
+                    onClick={() => setStatusFilter(s)}
+                  >
+                    {s === "all" ? "全部" : STATUS_LABELS[s]}
+                    {" "}
+                    <span className="admin-filter-tab__count">
+                      {s === "all" ? resources.length : resources.filter((r) => r.publish_status === s).length}
+                    </span>
+                  </button>
                 ))}
               </div>
-            </section>
+            </div>
 
-            <section className="admin-card">
-              <div className="section-head">
-                <div>
-                  <h2 className="section-title">搜索洞察</h2>
-                  <p className="section-subtitle">优先补无结果词和高频需求词。</p>
-                </div>
-              </div>
-
-              <div className="metrics-grid">
-                <div className="feedback-card admin-card">
-                  <h3>高频搜索词</h3>
-                  <div className="admin-table">
-                    {topQueries.length > 0 ? (
-                      topQueries.map((item) => (
-                        <div className="info-item" key={item.query}>
-                          <span>{item.query}</span>
-                          <strong>{item.count}</strong>
-                        </div>
-                      ))
+            <div className="admin-res-list">
+              {filteredResources.length === 0 && <p className="admin-empty">没有匹配的资源</p>}
+              {filteredResources.map((resource) => (
+                <div className="admin-res-row" key={resource.id}>
+                  <div className="admin-res-row__cover">
+                    {resource.cover ? (
+                      <img src={resource.cover} alt="" />
                     ) : (
-                      <p className="muted">还没有搜索数据。</p>
+                      <span>📁</span>
                     )}
                   </div>
-                </div>
-
-                <div className="feedback-card admin-card">
-                  <h3>无结果搜索词</h3>
-                  <div className="admin-table">
-                    {noResultQueries.length > 0 ? (
-                      noResultQueries.map((item) => (
-                        <div className="info-item" key={item.query}>
-                          <span>{item.query}</span>
-                          <strong>{item.count}</strong>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="muted">暂无无结果搜索词。</p>
+                  <div className="admin-res-row__body">
+                    <div className="admin-res-row__meta">
+                      <span className="admin-res-status" style={{ "--c": STATUS_COLORS[resource.publish_status] } as React.CSSProperties}>
+                        {STATUS_LABELS[resource.publish_status]}
+                      </span>
+                      <span className="admin-res-cat">{resource.category}</span>
+                    </div>
+                    <h3 className="admin-res-row__title">{resource.title}</h3>
+                    <p className="admin-res-row__summary">{resource.summary}</p>
+                  </div>
+                  <div className="admin-res-row__actions">
+                    <button type="button" className="adm-btn adm-btn--sm" onClick={() => handleEdit(resource)}>编辑</button>
+                    {resource.publish_status !== "published" && (
+                      <button type="button" className="adm-btn adm-btn--sm adm-btn--green" onClick={() => handleQuickStatus(resource.id, "published")}>发布</button>
                     )}
+                    {resource.publish_status !== "offline" && (
+                      <button type="button" className="adm-btn adm-btn--sm adm-btn--warn" onClick={() => handleQuickStatus(resource.id, "offline")}>下线</button>
+                    )}
+                    <button type="button" className="adm-btn adm-btn--sm adm-btn--danger" onClick={() => handleDelete(resource.id)}>删除</button>
                   </div>
                 </div>
-              </div>
-            </section>
+              ))}
+            </div>
           </div>
+        )}
 
-          <div className="admin-grid">
-            <section className="admin-card">
-              <div className="section-head">
-                <div>
-                  <h2 className="section-title">新增或编辑资源</h2>
-                  <p className="section-subtitle">更新后搜索页和详情页会立即使用新数据。</p>
+        {/* ─── 新增 / 编辑 ─────────────────────────── */}
+        {tab === "form" && (
+          <div className="admin-form-wrap">
+            <form className="admin-form-grid" onSubmit={handleSubmit}>
+              <div className="admin-form-section">
+                <h2 className="admin-form-section__title">基础信息</h2>
+                <div className="adm-field">
+                  <label htmlFor="title">标题 *</label>
+                  <input id="title" name="title" value={form.title} onChange={handleInputChange} required placeholder="资源标题" />
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="slug">Slug *</label>
+                  <input id="slug" name="slug" value={form.slug} onChange={handleInputChange} required placeholder="url-friendly-slug" />
+                </div>
+                <div className="adm-field">
+                  <label htmlFor="summary">摘要 *</label>
+                  <textarea id="summary" name="summary" value={form.summary} onChange={handleInputChange} required placeholder="简短描述资源内容" />
+                </div>
+                <div className="adm-field-row">
+                  <div className="adm-field">
+                    <label htmlFor="category">分类 *</label>
+                    <input id="category" name="category" value={form.category} onChange={handleInputChange} required />
+                  </div>
+                  <div className="adm-field">
+                    <label htmlFor="tags">标签（逗号分隔）</label>
+                    <input id="tags" name="tags" value={form.tags} onChange={handleInputChange} />
+                  </div>
                 </div>
               </div>
 
-              <form className="admin-form" onSubmit={handleSubmit}>
-                <div className="field">
-                  <label htmlFor="title">标题</label>
-                  <input id="title" name="title" value={form.title} onChange={handleInputChange} required />
+              <div className="admin-form-section">
+                <h2 className="admin-form-section__title">链接与封面</h2>
+                <div className="adm-field">
+                  <label htmlFor="quark_url">夸克链接 *</label>
+                  <input id="quark_url" name="quark_url" value={form.quark_url} onChange={handleInputChange} required placeholder="https://pan.quark.cn/..." />
                 </div>
-
-                <div className="field">
-                  <label htmlFor="slug">Slug</label>
-                  <input id="slug" name="slug" value={form.slug} onChange={handleInputChange} required />
+                <div className="adm-field-row">
+                  <div className="adm-field">
+                    <label htmlFor="extract_code">提取码</label>
+                    <input id="extract_code" name="extract_code" value={form.extract_code} onChange={handleInputChange} />
+                  </div>
+                  <div className="adm-field">
+                    <label htmlFor="publish_status">状态</label>
+                    <select id="publish_status" name="publish_status" value={form.publish_status} onChange={handleInputChange}>
+                      <option value="draft">草稿</option>
+                      <option value="published">已发布</option>
+                      <option value="offline">已下线</option>
+                    </select>
+                  </div>
                 </div>
-
-                <div className="field">
-                  <label htmlFor="summary">摘要</label>
-                  <textarea
-                    id="summary"
-                    name="summary"
-                    value={form.summary}
-                    onChange={handleInputChange}
-                    required
-                  />
+                <div className="adm-field">
+                  <label htmlFor="cover">封面图 URL *</label>
+                  <input id="cover" name="cover" value={form.cover} onChange={handleInputChange} required placeholder="https://..." />
                 </div>
-
-                <div className="field">
-                  <label htmlFor="category">分类</label>
-                  <input
-                    id="category"
-                    name="category"
-                    value={form.category}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="tags">标签</label>
-                  <input id="tags" name="tags" value={form.tags} onChange={handleInputChange} />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="cover">封面图</label>
-                  <input id="cover" name="cover" value={form.cover} onChange={handleInputChange} required />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="quark_url">夸克链接</label>
-                  <input
-                    id="quark_url"
-                    name="quark_url"
-                    value={form.quark_url}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="extract_code">提取码</label>
-                  <input
-                    id="extract_code"
-                    name="extract_code"
-                    value={form.extract_code}
-                    onChange={handleInputChange}
-                  />
-                </div>
-
-                <div className="field">
-                  <label htmlFor="publish_status">状态</label>
-                  <select
-                    id="publish_status"
-                    name="publish_status"
-                    value={form.publish_status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="draft">草稿</option>
-                    <option value="published">已发布</option>
-                    <option value="offline">已下线</option>
-                  </select>
-                </div>
-
-                <div className="field">
+                <div className="adm-field">
                   <label htmlFor="published_at">发布时间</label>
-                  <input
-                    id="published_at"
-                    name="published_at"
-                    type="datetime-local"
-                    value={form.published_at}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="action-row">
-                  <button className="button button-primary" disabled={isPending} type="submit">
-                    {isPending ? "保存中..." : form.id ? "更新资源" : "新增资源"}
-                  </button>
-                  <button className="button button-secondary" type="button" onClick={resetForm}>
-                    清空表单
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            <section className="admin-card">
-              <div className="section-head">
-                <div>
-                  <h2 className="section-title">CSV 导入</h2>
-                  <p className="section-subtitle">支持批量导入或覆盖更新资源。</p>
+                  <input id="published_at" name="published_at" type="datetime-local" value={form.published_at} onChange={handleInputChange} required />
                 </div>
               </div>
 
-              <div className="field">
-                <label htmlFor="csv-file">上传 CSV</label>
+              <div className="admin-form-actions">
+                <button className="adm-btn adm-btn--primary" disabled={isPending} type="submit">
+                  {isPending ? "保存中..." : form.id ? "更新资源" : "新增资源"}
+                </button>
+                <button className="adm-btn" type="button" onClick={() => setForm(emptyForm)}>清空表单</button>
+                {form.id && (
+                  <button className="adm-btn" type="button" onClick={() => { setForm(emptyForm); setTab("resources"); }}>取消编辑</button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ─── 批量导入 ─────────────────────────────── */}
+        {tab === "import" && (
+          <div className="admin-import-wrap">
+            <div className="admin-panel admin-panel--wide">
+              <div className="admin-panel__title">CSV 批量导入</div>
+              <p className="admin-import__desc">
+                支持新增和覆盖更新（upsert）。必填列：<code>title, slug, summary, category, tags, quark_url, extract_code, publish_status, published_at</code>
+              </p>
+              <div className="adm-field">
+                <label htmlFor="csv-file">上传 CSV 文件</label>
                 <input id="csv-file" type="file" accept=".csv,text/csv" onChange={handleFileUpload} />
               </div>
-
-              <div className="field">
-                <label htmlFor="csv">CSV 内容</label>
-                <textarea id="csv" value={csv} onChange={(event) => setCsv(event.target.value)} />
+              <div className="adm-field">
+                <label htmlFor="csv-text">或直接粘贴 CSV 内容</label>
+                <textarea id="csv-text" value={csv} onChange={(e) => setCsv(e.target.value)} rows={12} placeholder="title,slug,summary,category,..." />
               </div>
-
-              <div className="action-row">
-                <button className="button button-primary" type="button" onClick={handleImport}>
-                  执行导入
+              <div className="admin-form-actions">
+                <button className="adm-btn adm-btn--primary" type="button" onClick={handleImport} disabled={isPending || !csv.trim()}>
+                  {isPending ? "导入中..." : "执行导入"}
                 </button>
+                <button className="adm-btn" type="button" onClick={() => setCsv("")}>清空</button>
               </div>
-            </section>
-
-            {message ? (
-              <section className="admin-card">
-                <strong>操作结果</strong>
-                <p className="muted">{message}</p>
-              </section>
-            ) : null}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ─── 失效反馈 ─────────────────────────────── */}
+        {tab === "feedback" && (
+          <div className="admin-feedback">
+            <div className="admin-feedback__summary">
+              共 {feedback.length} 条，未处理 <strong>{feedback.filter((f) => !f.resolved).length}</strong> 条
+            </div>
+            <div className="admin-res-list">
+              {feedback.length === 0 && <p className="admin-empty">暂无反馈记录</p>}
+              {feedback.map((item) => (
+                <div className={`admin-res-row admin-fb-row${item.resolved ? " admin-fb-row--resolved" : ""}`} key={item.id}>
+                  <div className="admin-res-row__body">
+                    <div className="admin-res-row__meta">
+                      <span className="admin-fb-reason">{FEEDBACK_REASON_LABELS[item.reason] || item.reason}</span>
+                      {item.resolved && <span className="admin-fb-resolved">已处理</span>}
+                    </div>
+                    <h3 className="admin-res-row__title">
+                      <Link href={`/resource/${item.resource_slug}`}>{item.resource_title}</Link>
+                    </h3>
+                    {item.note && <p className="admin-res-row__summary">{item.note}</p>}
+                    <p className="admin-fb-time">{new Date(item.created_at).toLocaleString("zh-CN")}</p>
+                  </div>
+                  <div className="admin-res-row__actions">
+                    <Link href={`/resource/${item.resource_slug}`} className="adm-btn adm-btn--sm" target="_blank">查看</Link>
+                    {!item.resolved && (
+                      <>
+                        <button type="button" className="adm-btn adm-btn--sm adm-btn--warn"
+                          onClick={() => {
+                            const r = resources.find((r) => r.id === item.resource_id);
+                            if (r) handleQuickStatus(r.id, "offline");
+                            handleResolveFeedback(item.id);
+                          }}>
+                          下线资源
+                        </button>
+                        <button type="button" className="adm-btn adm-btn--sm adm-btn--green" onClick={() => handleResolveFeedback(item.id)}>
+                          标记处理
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

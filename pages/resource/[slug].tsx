@@ -1,6 +1,7 @@
 import { GetServerSideProps } from "next";
 import Link from "next/link";
 
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { ResourceCard } from "@/components/ResourceCard";
 import { Seo } from "@/components/Seo";
 import { TrackView } from "@/components/TrackView";
@@ -124,11 +125,8 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
                   <span>状态</span>
                   <strong>{offline ? "已下线" : "可下载"}</strong>
                 </div>
-                <div className="info-item">
-                  <span>反馈</span>
-                  <strong>失效可后台处理</strong>
-                </div>
               </div>
+              {!offline && <FeedbackButton resourceId={resource.id} />}
             </aside>
           </div>
         </div>

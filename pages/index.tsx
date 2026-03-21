@@ -20,13 +20,6 @@ interface HomeProps {
   };
 }
 
-const QUICK_NAVS = [
-  { label: "最新更新", href: "/" },
-  { label: "考试资料", href: "/search?q=考试资料" },
-  { label: "办公模板", href: "/search?q=模板" },
-  { label: "AI 提示词", href: "/search?q=AI" }
-];
-
 function timeAgo(dateStr: string) {
   const now = Date.now();
   const time = new Date(dateStr).getTime();
@@ -73,6 +66,12 @@ export default function Home({
     }))
   };
 
+  const spotlight = hotResources[0] || latestResources[0];
+  const editorPicks = latestResources.slice(1, 4);
+  const freshResources = latestResources.slice(0, 6);
+  const featuredCategories = categories.slice(0, 6);
+  const featuredTags = tags.slice(0, 10);
+
   return (
     <>
       <Seo title="首页" description={siteConfig.description} path="/" />
@@ -81,211 +80,181 @@ export default function Home({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="home-shell">
-        <div className="home-grid">
-          <aside className="home-left">
-            <section className="home-card home-nav-card">
-              <div className="home-card__title">快速频道</div>
-              <div className="home-nav-list">
-                {QUICK_NAVS.map((item, index) => (
-                  <Link
-                    className={`home-nav-item${index === 0 ? " home-nav-item--active" : ""}`}
-                    href={item.href}
-                    key={item.label}
-                  >
-                    <span className="home-nav-item__dot" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
+      <div className="home-v3">
+        <section className="home-v3-hero">
+          <div className="home-v3-hero__main">
+            <span className="home-v3-hero__eyebrow">编辑型资料门户</span>
+            <h1>不是资源站壳子，是一个有方向感的资料首页。</h1>
+            <p>
+              用更强的首屏、明确的内容分区和更有张力的视觉层次，把“搜索资料、进入详情、完成下载”
+              这条路径做得更直觉。
+            </p>
+
+            <div className="home-v3-hero__search">
+              <SearchBox />
+            </div>
+
+            <div className="home-v3-hero__keywords">
+              {["考研", "PPT 模板", "Python", "英语四六级", "Excel", "简历模板"].map((keyword) => (
+                <Link
+                  className="home-v3-hero__keyword"
+                  href={`/search?q=${encodeURIComponent(keyword)}`}
+                  key={keyword}
+                >
+                  {keyword}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {spotlight ? (
+            <Link className="home-v3-spotlight" href={`/resource/${spotlight.slug}`}>
+              <div className="home-v3-spotlight__media">
+                <img src={spotlight.cover} alt={spotlight.title} loading="lazy" />
               </div>
-            </section>
-
-            <section className="home-card home-nav-card">
-              <div className="home-card__title">分类导航</div>
-              <div className="home-nav-list">
-                {categories.map((category) => (
-                  <Link className="home-nav-item" href={`/category/${category.slug}`} key={category.slug}>
-                    <span className="home-nav-item__dot home-nav-item__dot--muted" />
-                    <span>{category.name}</span>
-                    <span className="home-nav-item__count">{category.count}</span>
-                  </Link>
-                ))}
+              <div className="home-v3-spotlight__content">
+                <span className="home-v3-spotlight__badge">本周重点</span>
+                <h2>{spotlight.title}</h2>
+                <p>{spotlight.summary}</p>
+                <div className="home-v3-spotlight__meta">
+                  <span>{spotlight.category}</span>
+                  <span>更新于 {timeAgo(spotlight.updated_at)}</span>
+                </div>
               </div>
-            </section>
+            </Link>
+          ) : null}
+        </section>
 
-            <section className="home-card home-note-card">
-              <div className="home-card__title">内容策略</div>
-              <p className="home-note-card__text">
-                首页负责承接搜索和聚合流量，详情页负责转化。高风险类目做整理页，低风险资源做下载页。
-              </p>
-            </section>
-          </aside>
+        <section className="home-v3-rail">
+          <div className="home-v3-stats">
+            <div className="home-v3-stat">
+              <strong>{stats.resourceCount}</strong>
+              <span>资源库</span>
+            </div>
+            <div className="home-v3-stat">
+              <strong>{stats.categoryCount}</strong>
+              <span>主题分类</span>
+            </div>
+            <div className="home-v3-stat">
+              <strong>{stats.queryCount}</strong>
+              <span>热搜词</span>
+            </div>
+            <div className="home-v3-stat">
+              <strong>{stats.eventCount}</strong>
+              <span>行为事件</span>
+            </div>
+          </div>
 
-          <main className="home-main">
-            <section className="home-hero-card">
-              <div className="home-hero-card__meta">资料检索首页</div>
-              <div className="home-hero-card__grid">
+          <div className="home-v3-categories">
+            {featuredCategories.map((category, index) => (
+              <Link className="home-v3-category" href={`/category/${category.slug}`} key={category.slug}>
+                <span className="home-v3-category__index">{String(index + 1).padStart(2, "0")}</span>
+                <strong>{category.name}</strong>
+                <em>{category.count} 条资源</em>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <div className="home-v3-layout">
+          <main className="home-v3-main">
+            <section className="home-v3-panel">
+              <div className="home-v3-panel__head">
                 <div>
-                  <h1>先搜关键词，再从整理页进入下载。</h1>
-                  <p>
-                    参考你给的资源站首页结构，这一版保留了三栏布局、顶部搜索和高密度资源流，
-                    但把内容重心改成更适合 SEO 的资料站，而不是论坛帖子站。
-                  </p>
-                </div>
-                <div className="home-hero-card__stats">
-                  <div className="home-mini-stat">
-                    <strong>{stats.resourceCount}</strong>
-                    <span>已发布资源</span>
-                  </div>
-                  <div className="home-mini-stat">
-                    <strong>{stats.categoryCount}</strong>
-                    <span>核心分类</span>
-                  </div>
-                  <div className="home-mini-stat">
-                    <strong>{stats.queryCount}</strong>
-                    <span>搜索热词</span>
-                  </div>
+                  <span className="home-v3-panel__label">Editor Picks</span>
+                  <h2>精选入口</h2>
                 </div>
               </div>
-
-              <div className="home-hero-card__search">
-                <SearchBox />
-              </div>
-
-              <div className="home-hot-row">
-                <span className="home-hot-row__label">热门搜索</span>
-                {["考研", "PPT 模板", "Excel", "英语四六级", "Python", "简历模板"].map((keyword) => (
-                  <Link
-                    className="home-hot-row__chip"
-                    href={`/search?q=${encodeURIComponent(keyword)}`}
-                    key={keyword}
-                  >
-                    {keyword}
+              <div className="home-v3-picks">
+                {editorPicks.map((resource) => (
+                  <Link className="home-v3-pick" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <div className="home-v3-pick__meta">
+                      <span>{resource.category}</span>
+                      <span>{timeAgo(resource.updated_at)}</span>
+                    </div>
+                    <h3>{resource.title}</h3>
+                    <p>{resource.summary}</p>
                   </Link>
                 ))}
               </div>
             </section>
 
-            <section className="home-notice-bar">
-              <span className="home-notice-bar__badge">公告</span>
-              <p>本站优先收录整理型资料和低风险可分发资源。搜索词和点击行为会直接进入后台统计。</p>
-            </section>
-
-            <section className="home-card home-feed-card">
-              <div className="home-feed-card__toolbar">
-                <div className="home-feed-card__tabs">
-                  <button className="home-feed-card__tab home-feed-card__tab--active" type="button">
-                    最新资源
-                  </button>
-                  <button className="home-feed-card__tab" type="button">
-                    推荐合集
-                  </button>
-                  <button className="home-feed-card__tab" type="button">
-                    补库方向
-                  </button>
+            <section className="home-v3-panel">
+              <div className="home-v3-panel__head">
+                <div>
+                  <span className="home-v3-panel__label">Fresh Stack</span>
+                  <h2>最新资源流</h2>
                 </div>
-                <div className="home-feed-card__hint">搜索驱动更新</div>
+                <Link href="/search?q=">查看更多</Link>
               </div>
-
-              <div className="home-feed-list">
-                {latestResources.map((resource) => (
-                  <Link className="home-feed-item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <div className="home-feed-item__thumb">
+              <div className="home-v3-list">
+                {freshResources.map((resource) => (
+                  <Link className="home-v3-item" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <div className="home-v3-item__thumb">
                       <img src={resource.cover} alt={resource.title} loading="lazy" />
                     </div>
-
-                    <div className="home-feed-item__body">
-                      <div className="home-feed-item__tags">
-                        <span className="home-feed-item__category">{resource.category}</span>
+                    <div className="home-v3-item__body">
+                      <div className="home-v3-item__tags">
+                        <span className="home-v3-item__category">{resource.category}</span>
                         {resource.tags.slice(0, 2).map((tag) => (
-                          <span className="home-feed-item__tag" key={tag}>
+                          <span className="home-v3-item__tag" key={tag}>
                             {tag}
                           </span>
                         ))}
                       </div>
                       <h3>{resource.title}</h3>
                       <p>{resource.summary}</p>
-                      <div className="home-feed-item__meta">
-                        <span>最近更新 {timeAgo(resource.updated_at)}</span>
-                        <span>标签 {resource.tags.length}</span>
-                        <span>适合做详情转化页</span>
-                      </div>
                     </div>
-
-                    <div className="home-feed-item__side">
-                      <strong>查看</strong>
-                      <span>{resource.tags[0] || "资料"}</span>
+                    <div className="home-v3-item__meta">
+                      <span>{timeAgo(resource.updated_at)}</span>
+                      <strong>详情</strong>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-card home-tag-card">
-              <div className="home-card__title">热门标签入口</div>
-              <div className="home-tag-cloud">
-                {tags.map((tag) => (
-                  <Link className="home-tag-cloud__item" href={`/tag/${tag.slug}`} key={tag.slug}>
-                    <span>{tag.name}</span>
-                    <em>{tag.count}</em>
                   </Link>
                 ))}
               </div>
             </section>
           </main>
 
-          <aside className="home-right">
-            <section className="home-card home-brand-card">
-              <div className="home-brand-card__cover" />
-              <div className="home-brand-card__body">
-                <div className="home-brand-card__logo">夸</div>
-                <h2>夸克资料搜索站</h2>
-                <p>
-                  面向资料检索、模板下载和备考整理的内容站。不是纯搬运站，而是先整理、再转化。
-                </p>
-              </div>
+          <aside className="home-v3-side">
+            <section className="home-v3-panel home-v3-manifesto">
+              <span className="home-v3-manifesto__mark">夸</span>
+              <h2>先整理，再下载。</h2>
+              <p>
+                首页用搜索和精选建立第一印象，分类负责分流，详情页负责转化。整个站不再像传统资源论坛。
+              </p>
             </section>
 
-            <section className="home-card">
-              <div className="home-card__title">站点统计</div>
-              <div className="home-stats-grid">
-                <div className="home-stats-grid__item">
-                  <strong>{stats.resourceCount}</strong>
-                  <span>资源总数</span>
-                </div>
-                <div className="home-stats-grid__item">
-                  <strong>{stats.eventCount}</strong>
-                  <span>事件记录</span>
-                </div>
-                <div className="home-stats-grid__item">
-                  <strong>{stats.categoryCount}</strong>
-                  <span>分类数</span>
-                </div>
-                <div className="home-stats-grid__item">
-                  <strong>{stats.queryCount}</strong>
-                  <span>搜索热词</span>
+            <section className="home-v3-panel">
+              <div className="home-v3-panel__head">
+                <div>
+                  <span className="home-v3-panel__label">Hot Now</span>
+                  <h2>热门资源榜</h2>
                 </div>
               </div>
-            </section>
-
-            <section className="home-card">
-              <div className="home-card__title">热门资源排行</div>
-              <div className="home-rank-list">
-                {hotResources.map((resource, index) => (
-                  <Link className="home-rank-item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <span className="home-rank-item__index">{rankLabel(index)}</span>
-                    <span className="home-rank-item__title">{resource.title}</span>
+              <div className="home-v3-rank">
+                {hotResources.slice(0, 5).map((resource, index) => (
+                  <Link className="home-v3-rank__item" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <span className="home-v3-rank__index">{rankLabel(index)}</span>
+                    <span className="home-v3-rank__title">{resource.title}</span>
                   </Link>
                 ))}
               </div>
             </section>
 
-            <section className="home-card">
-              <div className="home-card__title">本周重点方向</div>
-              <div className="home-check-list">
-                <div className="home-check-list__item">优先补高频无结果词</div>
-                <div className="home-check-list__item">模板类资源保持每周上新</div>
-                <div className="home-check-list__item">高风险内容只做整理和导航</div>
+            <section className="home-v3-panel">
+              <div className="home-v3-panel__head">
+                <div>
+                  <span className="home-v3-panel__label">Long Tail</span>
+                  <h2>热门标签</h2>
+                </div>
+              </div>
+              <div className="home-v3-tags">
+                {featuredTags.map((tag) => (
+                  <Link className="home-v3-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
+                    <span>{tag.name}</span>
+                    <em>{tag.count}</em>
+                  </Link>
+                ))}
               </div>
             </section>
           </aside>

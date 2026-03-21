@@ -6,6 +6,8 @@ import { slugify } from "@/lib/format";
 import { searchResources } from "@/lib/search";
 import {
   CsvImportResult,
+  Feedback,
+  FeedbackReason,
   PublishStatus,
   Resource,
   SearchResponse,
@@ -15,6 +17,7 @@ import {
 const dataDir = path.join(process.cwd(), "data");
 const resourceFile = path.join(dataDir, "resources.json");
 const eventsFile = path.join(dataDir, "events.jsonl");
+const feedbackFile = path.join(dataDir, "feedback.jsonl");
 
 function ensureDataFiles() {
   if (!fs.existsSync(dataDir)) {
@@ -27,6 +30,10 @@ function ensureDataFiles() {
 
   if (!fs.existsSync(eventsFile)) {
     fs.writeFileSync(eventsFile, "");
+  }
+
+  if (!fs.existsSync(feedbackFile)) {
+    fs.writeFileSync(feedbackFile, "");
   }
 }
 
@@ -325,4 +332,39 @@ export function getResourcesByTagSlug(slug: string) {
 
 export function runSearch(query: string, page = 1): SearchResponse {
   return searchResources(getPublishedResources(), query, page);
+}
+
+// ─── Feedback ────────────────────────────────────────────────────────────────
+
+export function getFeedback(): Feedback[] {
+  ensureDataFiles();
+  const raw = fs.readFileSync(feedbackFile, "utf8").trim();
+  if (!raw) return [];
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Feedback);
+}
+
+export function recordFeedback(
+  input: Pick<Feedback, "resource_id" | "resource_title" | "resource_slug" | "reason" | "note">
+): Feedback {
+  ensureDataFiles();
+  const feedback: Feedback = {
+    ...input,
+    id: `fb_${Date.now().toString(36)}`,
+    created_at: new Date().toISOString(),
+    resolved: false,
+  };
+  fs.appendFileSync(feedbackFile, `${JSON.stringify(feedback)}\n`, "utf8");
+  return feedback;
+}
+
+export function resolveFeedback(id: string): void {
+  ensureDataFiles();
+  const items = getFeedback().map((item) =>
+    item.id === id ? { ...item, resolved: true } : item
+  );
+  fs.writeFileSync(feedbackFile, items.map((i) => JSON.stringify(i)).join("\n") + "\n", "utf8");
 }
