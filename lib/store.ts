@@ -731,8 +731,8 @@ export async function getContentStructure(): Promise<ContentStructure> {
 
   return {
     site_profile: {
-      name: siteProfile?.name || "夸克资料站",
-      tagline: siteProfile?.tagline || "搜索优先的夸克资料站",
+      name: siteProfile?.name || "夸克网盘资料",
+      tagline: siteProfile?.tagline || "搜索优先的夸克网盘资料",
       short_link: siteProfile?.short_link || "",
       positioning: siteProfile?.positioning || "通过数据库驱动频道、栏目、专题和资源。",
       ...(siteProfile?.featured_message ? { featured_message: siteProfile.featured_message } : {}),

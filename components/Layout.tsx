@@ -188,28 +188,8 @@ export function Layout({ children }: PropsWithChildren) {
         <div className="site-header__inner">
           <Link className="brand" href="/">
             <span className="brand-icon">夸</span>
-            <strong>夸克资料站</strong>
+            <strong>夸克网盘资料</strong>
           </Link>
-
-          <div className="header-search">
-            <Link href="/search?q=" className="header-search-btn">
-              搜索
-            </Link>
-            <button
-              type="button"
-              className={`mobile-nav-btn${mobileNavOpen ? " mobile-nav-btn--active" : ""}`}
-              aria-label="切换导航菜单"
-              aria-expanded={mobileNavOpen}
-              onClick={() => {
-                setMobileNavOpen((current) => !current);
-                setOpenMenu(null);
-              }}
-            >
-              <span />
-              <span />
-              <span />
-            </button>
-          </div>
 
           <nav className={`nav${mobileNavOpen ? " nav--mobile-open" : ""}`} aria-label="主导航">
             {navItems.map((item) => {
@@ -282,7 +262,28 @@ export function Layout({ children }: PropsWithChildren) {
                 </div>
               );
             })}
+
+            <Link href="/search?q=" className="nav-link nav-link--search">
+              搜索
+            </Link>
           </nav>
+
+          <div className="header-search">
+            <button
+              type="button"
+              className={`mobile-nav-btn${mobileNavOpen ? " mobile-nav-btn--active" : ""}`}
+              aria-label="切换导航菜单"
+              aria-expanded={mobileNavOpen}
+              onClick={() => {
+                setMobileNavOpen((current) => !current);
+                setOpenMenu(null);
+              }}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -290,10 +291,14 @@ export function Layout({ children }: PropsWithChildren) {
 
       <footer className="site-footer">
         <div className="site-footer__inner">
-          <p>夸克资料站 · 搜索驱动更新</p>
-          <p>
+          <p>夸克网盘资料 · 搜索驱动更新</p>
+          <div className="site-footer__links">
+            <Link href="/privacy">隐私</Link>
+            <Link href="/terms">使用条款</Link>
+            <Link href="/about">关于</Link>
+            <Link href="/contact">联系我们</Link>
             <Link href="/sitemap.xml">Sitemap</Link>
-          </p>
+          </div>
         </div>
       </footer>
     </div>

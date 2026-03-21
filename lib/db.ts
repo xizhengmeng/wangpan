@@ -245,7 +245,7 @@ async function ensureMissingColumns() {
 async function ensureDefaultSiteProfile() {
   await getPool().query(
     `INSERT INTO site_profile (id, name, tagline, short_link, positioning, featured_message)
-     SELECT 1, '夸克资料站', '搜索优先的夸克资料站', '', '通过数据库驱动频道、栏目、专题和资源。', NULL
+     SELECT 1, '夸克网盘资料', '搜索优先的夸克网盘资料', '', '通过数据库驱动频道、栏目、专题和资源。', NULL
      FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM site_profile WHERE id = 1)`
   );
@@ -314,8 +314,8 @@ async function seedStructureIfEmpty() {
          SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?
          WHERE id = 1`,
         [
-          structure.site_profile.name || "夸克资料站",
-          structure.site_profile.tagline || "搜索优先的夸克资料站",
+          structure.site_profile.name || "夸克网盘资料",
+          structure.site_profile.tagline || "搜索优先的夸克网盘资料",
           structure.site_profile.short_link || "",
           structure.site_profile.positioning || "通过数据库驱动频道、栏目、专题和资源。",
           structure.site_profile.featured_message || null,

@@ -858,6 +858,13 @@ button, input, textarea, select { font: inherit; }
   font-size: 13px;
   color: var(--text-muted);
 }
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
 .site-footer a { color: var(--text-secondary); }
 .site-footer a:hover { color: var(--brand); }
 
@@ -2708,6 +2715,33 @@ img {
   color: var(--muted);
   max-width: 64ch;
   line-height: 1.8;
+}
+
+.info-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.info-section {
+  padding: 24px;
+}
+
+.info-copy {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.info-copy ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.info-copy li {
+  margin: 0;
 }
 
 .result-list,
@@ -4704,6 +4738,15 @@ img {
 
   .home-v4-channel-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .site-footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-footer__links {
+    justify-content: flex-start;
   }
 }
 

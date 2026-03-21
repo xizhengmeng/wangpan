@@ -490,7 +490,7 @@ export function AdminResourcesClient({
       {/* ── Left sidebar ── */}
       <aside className="adm-sidebar">
         <div className="adm-sidebar__brand">
-          <Link href="/" className="adm-sidebar__logo">夸克资料站</Link>
+          <Link href="/" className="adm-sidebar__logo">夸克网盘资料</Link>
           <p className="adm-sidebar__sub">运营后台</p>
         </div>
 
