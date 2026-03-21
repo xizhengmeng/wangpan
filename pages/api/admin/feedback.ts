@@ -2,9 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { getFeedback, resolveFeedback } from "@/lib/store";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
-    return res.status(200).json({ items: getFeedback().reverse() });
+    return res.status(200).json({ items: (await getFeedback()).reverse() });
   }
 
   // PATCH /api/admin/feedback  { id, resolved: true }
@@ -14,7 +14,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: "缺少 id" });
     }
     try {
-      resolveFeedback(id);
+      await resolveFeedback(id);
       return res.status(200).json({ ok: true });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : "操作失败" });

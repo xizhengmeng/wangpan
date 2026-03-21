@@ -290,9 +290,13 @@ export default function Home({
 }
 
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  const publishedResources = getPublishedResources();
-  const analytics = getAnalyticsSummary();
-  const structure = getContentStructure();
+  const [publishedResources, analytics, structure, featuredChannels, featuredTopics] = await Promise.all([
+    getPublishedResources(),
+    getAnalyticsSummary(),
+    getContentStructure(),
+    getFeaturedChannels(),
+    getFeaturedTopics(),
+  ]);
   const hotResourceMap = new Map(publishedResources.map((resource) => [resource.id, resource]));
   const hotResources =
     analytics.topResources
@@ -300,18 +304,21 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .filter(Boolean)
       .slice(0, 6) || [];
 
-  const tagMap = getTagMap(publishedResources);
+  const tagMap = await getTagMap(publishedResources);
+  const featuredTopicsWithResources = await Promise.all(
+    featuredTopics.map(async (topic) => ({
+      ...topic,
+      resources: await getResourcesByTopicId(topic.id),
+    }))
+  );
 
   return {
     props: {
       latestResources: publishedResources.slice(0, 12),
       hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 6),
       tags: tagMap.slice(0, 18),
-      featuredChannels: getFeaturedChannels().slice(0, 6),
-      featuredTopics: getFeaturedTopics().map((topic) => ({
-        ...topic,
-        resources: getResourcesByTopicId(topic.id)
-      })),
+      featuredChannels: featuredChannels.slice(0, 6),
+      featuredTopics: featuredTopicsWithResources,
       structure,
       stats: {
         resourceCount: publishedResources.length,

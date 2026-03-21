@@ -82,11 +82,11 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
                 <strong>还没有找到相关资源</strong>
                 <p className="muted">这个关键词会被记入无结果词，后续可据此补库。</p>
                 <div className="chip-row" style={{ justifyContent: "center" }}>
-                  <Link className="chip" href="/category/%E8%80%83%E8%AF%95%E8%B5%84%E6%96%99">
-                    先看考试资料
+                  <Link className="chip" href="/channel/education-exam">
+                    先看教育考试
                   </Link>
-                  <Link className="chip" href="/category/%E6%A8%A1%E6%9D%BF%E7%B4%A0%E6%9D%90">
-                    先看模板素材
+                  <Link className="chip" href="/channel/software-tools">
+                    先看软件工具
                   </Link>
                 </div>
               </div>
@@ -117,6 +117,6 @@ export const getServerSideProps: GetServerSideProps<SearchPageProps> = async ({ 
   const page = Number.parseInt(typeof query.page === "string" ? query.page : "1", 10) || 1;
 
   return {
-    props: runSearch(q, page)
+    props: await runSearch(q, page)
   };
 };

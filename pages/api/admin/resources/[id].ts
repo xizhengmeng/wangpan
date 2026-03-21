@@ -2,12 +2,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { deleteResource, saveResource } from "@/lib/store";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const id = String(req.query.id || "");
 
   if (req.method === "PUT") {
     try {
-      const resource = saveResource({
+      const resource = await saveResource({
         ...req.body,
         id
       });
@@ -20,7 +20,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === "DELETE") {
-    deleteResource(id);
+    await deleteResource(id);
     return res.status(204).end();
   }
 

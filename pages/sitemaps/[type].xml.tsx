@@ -19,11 +19,11 @@ export const getServerSideProps: GetServerSideProps = async ({ params, res }) =>
   let urls: string[] = [];
 
   if (type === "resources") {
-    urls = getPublishedResources().map((resource) => absoluteUrl(`/resource/${resource.slug}`));
+    urls = (await getPublishedResources()).map((resource) => absoluteUrl(`/resource/${resource.slug}`));
   } else if (type === "categories") {
-    urls = getCategoryMap().map((category) => absoluteUrl(`/category/${category.slug}`));
+    urls = (await getCategoryMap()).map((category) => absoluteUrl(`/category/${category.slug}`));
   } else if (type === "tags") {
-    urls = getTagMap().map((tag) => absoluteUrl(`/tag/${tag.slug}`));
+    urls = (await getTagMap()).map((tag) => absoluteUrl(`/tag/${tag.slug}`));
   } else {
     return {
       notFound: true

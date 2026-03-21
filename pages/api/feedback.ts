@@ -6,7 +6,7 @@ import { FeedbackReason } from "@/lib/types";
 
 const VALID_REASONS: FeedbackReason[] = ["expired", "wrong_file", "extract_error", "other"];
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
@@ -22,12 +22,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: "反馈原因不合法" });
     }
 
-    const resource = getResourceById(resource_id);
+    const resource = await getResourceById(resource_id);
     if (!resource) {
       return res.status(404).json({ error: "资源不存在" });
     }
 
-    const feedback = recordFeedback({
+    const feedback = await recordFeedback({
       resource_id,
       resource_title: resource.title,
       resource_slug: resource.slug,

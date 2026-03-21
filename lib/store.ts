@@ -1,7 +1,9 @@
-import fs from "node:fs";
-import path from "node:path";
+import { randomUUID } from "node:crypto";
+
+import { PoolConnection, RowDataPacket } from "mysql2/promise";
 
 import { summarizeEvents } from "@/lib/analytics";
+import { execute, queryRows, withTransaction } from "@/lib/db";
 import { slugify } from "@/lib/format";
 import { searchResources } from "@/lib/search";
 import {
@@ -14,153 +16,279 @@ import {
   PublishStatus,
   Resource,
   SearchResponse,
-  TrackEvent
+  TrackEvent,
+  TopicNode,
 } from "@/lib/types";
 
-const dataDir = path.join(process.cwd(), "data");
-const resourceFile = path.join(dataDir, "resources.json");
-const eventsFile = path.join(dataDir, "events.jsonl");
-const feedbackFile = path.join(dataDir, "feedback.jsonl");
-const contentStructureFile = path.join(dataDir, "content-structure.json");
+type ResourceRow = RowDataPacket & {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string;
+  category: string;
+  channel_id: string | null;
+  category_id: string | null;
+  cover: string;
+  quark_url: string;
+  extract_code: string | null;
+  publish_status: PublishStatus;
+  published_at: string;
+  updated_at: string;
+};
 
-function ensureDataFiles() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+type TagRow = RowDataPacket & {
+  resource_id: string;
+  tag_name: string;
+  tag_slug: string;
+};
+
+type ResourceTopicRow = RowDataPacket & {
+  resource_id: string;
+  topic_id: string;
+};
+
+type SiteProfileRow = RowDataPacket & {
+  name: string;
+  tagline: string;
+  short_link: string;
+  positioning: string;
+  featured_message: string | null;
+};
+
+type ChannelRow = RowDataPacket & {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  sort_order: number;
+  featured: number;
+  status: "active" | "hidden";
+};
+
+type CategoryRow = RowDataPacket & {
+  id: string;
+  channel_id: string;
+  parent_id: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  sort_order: number;
+  featured: number;
+  status: "active" | "hidden";
+};
+
+type TopicRow = RowDataPacket & {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  summary: string;
+  sort_order: number;
+  featured: number;
+  status: "active" | "hidden";
+};
+
+type EventRow = RowDataPacket & {
+  name: TrackEvent["name"];
+  event_time: string;
+  session_id: string | null;
+  anon_user_id: string | null;
+  query_text: string | null;
+  resource_id: string | null;
+  result_rank: number | null;
+  result_count: number | null;
+  from_page: string | null;
+  referer: string | null;
+  device: string | null;
+  ua: string | null;
+};
+
+type FeedbackRow = RowDataPacket & {
+  id: string;
+  resource_id: string;
+  resource_title: string;
+  resource_slug: string;
+  reason: FeedbackReason;
+  note: string | null;
+  created_at: string;
+  resolved: number;
+};
+
+function toIsoString(value: string | Date) {
+  if (value instanceof Date) {
+    return value.toISOString();
   }
 
-  if (!fs.existsSync(resourceFile)) {
-    fs.writeFileSync(resourceFile, "[]\n");
+  if (value.includes("T")) {
+    return value.endsWith("Z") ? value : `${value}Z`;
   }
 
-  if (!fs.existsSync(eventsFile)) {
-    fs.writeFileSync(eventsFile, "");
-  }
-
-  if (!fs.existsSync(feedbackFile)) {
-    fs.writeFileSync(feedbackFile, "");
-  }
-
-  if (!fs.existsSync(contentStructureFile)) {
-    fs.writeFileSync(
-      contentStructureFile,
-      JSON.stringify(
-        {
-          site_profile: {
-            name: "",
-            tagline: "",
-            short_link: "",
-            positioning: ""
-          },
-          channels: [],
-          categories: [],
-          topics: []
-        },
-        null,
-        2
-      ) + "\n"
-    );
-  }
+  return `${value.replace(" ", "T")}Z`;
 }
 
-function readJsonFile<T>(filePath: string, fallback: T): T {
-  ensureDataFiles();
-  if (!fs.existsSync(filePath)) {
-    return fallback;
-  }
-
-  const raw = fs.readFileSync(filePath, "utf8").trim();
-  if (!raw) {
-    return fallback;
-  }
-
-  return JSON.parse(raw) as T;
+function toSqlDateTime(value: string | Date) {
+  return new Date(value).toISOString().slice(0, 19).replace("T", " ");
 }
 
-function writeJsonFile(filePath: string, value: unknown) {
-  ensureDataFiles();
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-export function getAllResources() {
-  return readJsonFile<Resource[]>(resourceFile, []);
-}
-
-export function getPublishedResources() {
-  return getAllResources()
-    .filter((resource) => resource.publish_status === "published")
-    .sort(
-      (a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
-}
-
-export function getResourceBySlug(slug: string) {
-  return getAllResources().find((resource) => resource.slug === slug) || null;
-}
-
-export function getResourceById(id: string) {
-  return getAllResources().find((resource) => resource.id === id) || null;
-}
-
-export function saveResource(
-  input: Omit<Resource, "id" | "updated_at"> & { id?: string }
-) {
-  const resources = getAllResources();
-  const now = new Date().toISOString();
-  const slug = slugify(input.slug || input.title);
-
-  const duplicate = resources.find(
-    (item) => item.slug === slug && item.id !== input.id
-  );
-  if (duplicate) {
-    throw new Error("slug 已存在");
-  }
-
-  if (input.id) {
-    const index = resources.findIndex((item) => item.id === input.id);
-    if (index === -1) {
-      throw new Error("资源不存在");
-    }
-
-    const nextResource: Resource = {
-      ...resources[index],
-      ...input,
-      slug,
-      updated_at: now
-    };
-    resources[index] = nextResource;
-    writeJsonFile(resourceFile, resources);
-    return nextResource;
-  }
-
-  const resource: Resource = {
-    ...input,
-    id: `res_${Date.now().toString(36)}`,
-    slug,
-    updated_at: now
+function mapResourceRow(
+  row: ResourceRow,
+  tagsByResourceId: Map<string, string[]>,
+  topicIdsByResourceId: Map<string, string[]>
+): Resource {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    summary: row.summary,
+    category: row.category,
+    channel_id: row.channel_id || undefined,
+    category_id: row.category_id || undefined,
+    topic_ids: topicIdsByResourceId.get(row.id) || [],
+    tags: tagsByResourceId.get(row.id) || [],
+    cover: row.cover,
+    quark_url: row.quark_url,
+    extract_code: row.extract_code || undefined,
+    publish_status: row.publish_status,
+    published_at: toIsoString(row.published_at),
+    updated_at: toIsoString(row.updated_at),
   };
-  resources.unshift(resource);
-  writeJsonFile(resourceFile, resources);
-  return resource;
 }
 
-export function deleteResource(id: string) {
-  const resources = getAllResources();
-  const nextResources = resources.filter((item) => item.id !== id);
-  writeJsonFile(resourceFile, nextResources);
-}
-
-export function markResourceStatus(id: string, status: PublishStatus) {
-  const resource = getResourceById(id);
-  if (!resource) {
-    throw new Error("资源不存在");
+async function loadTagsForResourceIds(resourceIds: string[]) {
+  const tagsByResourceId = new Map<string, string[]>();
+  if (resourceIds.length === 0) {
+    return tagsByResourceId;
   }
 
-  return saveResource({
-    ...resource,
-    id,
-    publish_status: status
-  });
+  const placeholders = resourceIds.map(() => "?").join(", ");
+  const rows = await queryRows<TagRow>(
+    `SELECT resource_id, tag_name, tag_slug
+     FROM resource_tags
+     WHERE resource_id IN (${placeholders})
+     ORDER BY resource_id, sort_order ASC, tag_name ASC`,
+    resourceIds
+  );
+
+  for (const row of rows) {
+    const list = tagsByResourceId.get(row.resource_id) || [];
+    list.push(row.tag_name);
+    tagsByResourceId.set(row.resource_id, list);
+  }
+
+  return tagsByResourceId;
+}
+
+async function loadTopicIdsForResourceIds(resourceIds: string[]) {
+  const topicIdsByResourceId = new Map<string, string[]>();
+  if (resourceIds.length === 0) {
+    return topicIdsByResourceId;
+  }
+
+  const placeholders = resourceIds.map(() => "?").join(", ");
+  const rows = await queryRows<ResourceTopicRow>(
+    `SELECT resource_id, topic_id
+     FROM resource_topics
+     WHERE resource_id IN (${placeholders})
+     ORDER BY resource_id, topic_id`,
+    resourceIds
+  );
+
+  for (const row of rows) {
+    const list = topicIdsByResourceId.get(row.resource_id) || [];
+    list.push(row.topic_id);
+    topicIdsByResourceId.set(row.resource_id, list);
+  }
+
+  return topicIdsByResourceId;
+}
+
+async function hydrateResources(rows: ResourceRow[]) {
+  const resourceIds = rows.map((row) => row.id);
+  const [tagsByResourceId, topicIdsByResourceId] = await Promise.all([
+    loadTagsForResourceIds(resourceIds),
+    loadTopicIdsForResourceIds(resourceIds),
+  ]);
+
+  return rows.map((row) => mapResourceRow(row, tagsByResourceId, topicIdsByResourceId));
+}
+
+async function getResourceRows(whereSql = "", params: unknown[] = []) {
+  return queryRows<ResourceRow>(
+    `SELECT
+      id,
+      title,
+      slug,
+      summary,
+      category,
+      channel_id,
+      category_id,
+      cover,
+      quark_url,
+      extract_code,
+      publish_status,
+      published_at,
+      updated_at
+     FROM resources
+     ${whereSql}
+     ORDER BY updated_at DESC`,
+    params
+  );
+}
+
+async function getSingleResource(whereSql: string, params: unknown[]) {
+  const rows = await queryRows<ResourceRow>(
+    `SELECT
+      id,
+      title,
+      slug,
+      summary,
+      category,
+      channel_id,
+      category_id,
+      cover,
+      quark_url,
+      extract_code,
+      publish_status,
+      published_at,
+      updated_at
+     FROM resources
+     ${whereSql}
+     ORDER BY updated_at DESC
+     LIMIT 1`,
+    params
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const resources = await hydrateResources(rows);
+  return resources[0] || null;
+}
+
+async function upsertResourceRelations(
+  connection: PoolConnection,
+  resourceId: string,
+  tags: string[],
+  topicIds: string[]
+) {
+  await connection.execute(`DELETE FROM resource_tags WHERE resource_id = ?`, [resourceId]);
+  await connection.execute(`DELETE FROM resource_topics WHERE resource_id = ?`, [resourceId]);
+
+  for (const [index, tag] of tags.entries()) {
+    await connection.execute(
+      `INSERT INTO resource_tags (resource_id, tag_name, tag_slug, sort_order)
+       VALUES (?, ?, ?, ?)`,
+      [resourceId, tag, slugify(tag), index]
+    );
+  }
+
+  for (const topicId of topicIds) {
+    await connection.execute(
+      `INSERT INTO resource_topics (resource_id, topic_id)
+       VALUES (?, ?)`,
+      [resourceId, topicId]
+    );
+  }
 }
 
 function parseCsvLine(line: string) {
@@ -204,10 +332,137 @@ function isValidHttpUrl(url: string) {
   }
 }
 
-export function importResourcesFromCsv(
+export async function getAllResources() {
+  const rows = await getResourceRows();
+  return hydrateResources(rows);
+}
+
+export async function getPublishedResources() {
+  const rows = await getResourceRows(`WHERE publish_status = ?`, ["published"]);
+  return hydrateResources(rows);
+}
+
+export async function getResourceBySlug(slug: string) {
+  return getSingleResource(`WHERE slug = ?`, [slug]);
+}
+
+export async function getResourceById(id: string) {
+  return getSingleResource(`WHERE id = ?`, [id]);
+}
+
+export async function saveResource(
+  input: Omit<Resource, "id" | "updated_at"> & { id?: string }
+) {
+  const slug = slugify(input.slug || input.title);
+  const now = new Date();
+  const id = input.id || `res_${Date.now().toString(36)}`;
+  const topicIds = Array.from(new Set((input.topic_ids || []).filter(Boolean)));
+  const tags = Array.from(new Set((input.tags || []).map((tag) => tag.trim()).filter(Boolean)));
+
+  await withTransaction(async (connection) => {
+    const [duplicates] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM resources WHERE slug = ? AND id <> ? LIMIT 1`,
+      [slug, id]
+    );
+
+    if (duplicates.length > 0) {
+      throw new Error("slug 已存在");
+    }
+
+    const [existingRows] = await connection.query<RowDataPacket[]>(
+      `SELECT id FROM resources WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    const payload = [
+      id,
+      input.title,
+      slug,
+      input.summary,
+      input.category,
+      input.channel_id || null,
+      input.category_id || null,
+      input.cover,
+      input.quark_url,
+      input.extract_code || null,
+      input.publish_status,
+      toSqlDateTime(input.published_at),
+      toSqlDateTime(now),
+    ];
+
+    if (existingRows.length > 0) {
+      await connection.execute(
+        `UPDATE resources SET
+          title = ?,
+          slug = ?,
+          summary = ?,
+          category = ?,
+          channel_id = ?,
+          category_id = ?,
+          cover = ?,
+          quark_url = ?,
+          extract_code = ?,
+          publish_status = ?,
+          published_at = ?,
+          updated_at = ?
+         WHERE id = ?`,
+        [
+          input.title,
+          slug,
+          input.summary,
+          input.category,
+          input.channel_id || null,
+          input.category_id || null,
+          input.cover,
+          input.quark_url,
+          input.extract_code || null,
+          input.publish_status,
+          toSqlDateTime(input.published_at),
+          toSqlDateTime(now),
+          id,
+        ]
+      );
+    } else {
+      await connection.execute(
+        `INSERT INTO resources (
+          id, title, slug, summary, category, channel_id, category_id, cover, quark_url,
+          extract_code, publish_status, published_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        payload
+      );
+    }
+
+    await upsertResourceRelations(connection, id, tags, topicIds);
+  });
+
+  const resource = await getResourceById(id);
+  if (!resource) {
+    throw new Error("保存失败");
+  }
+  return resource;
+}
+
+export async function deleteResource(id: string) {
+  await execute(`DELETE FROM resources WHERE id = ?`, [id]);
+}
+
+export async function markResourceStatus(id: string, status: PublishStatus) {
+  const resource = await getResourceById(id);
+  if (!resource) {
+    throw new Error("资源不存在");
+  }
+
+  return saveResource({
+    ...resource,
+    id,
+    publish_status: status,
+  });
+}
+
+export async function importResourcesFromCsv(
   csv: string,
   mode: "insert" | "upsert"
-): CsvImportResult {
+): Promise<CsvImportResult> {
   const rows = csv
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -227,7 +482,7 @@ export function importResourcesFromCsv(
     "quark_url",
     "extract_code",
     "publish_status",
-    "published_at"
+    "published_at",
   ];
 
   const missingHeaders = requiredHeaders.filter((name) => !header.includes(name));
@@ -237,7 +492,6 @@ export function importResourcesFromCsv(
 
   let successCount = 0;
   const failures: CsvImportResult["failures"] = [];
-  const resources = getAllResources();
 
   for (let i = 1; i < rows.length; i += 1) {
     const rowNumber = i + 1;
@@ -257,33 +511,32 @@ export function importResourcesFromCsv(
         .map((tag: string) => tag.trim())
         .filter(Boolean);
 
-      const existing = resources.find((item) => item.slug === slugify(record.slug));
-      if (existing && mode === "insert") {
-        throw new Error("slug 已存在");
+      const existing = await getSingleResource(`WHERE slug = ?`, [slugify(record.slug)]);
+      if (mode === "insert" && existing) {
+        throw new Error("slug 已存在，insert 模式不允许覆盖");
       }
 
-      const payload = {
+      await saveResource({
         id: existing?.id,
         title: record.title,
         slug: record.slug,
         summary: record.summary,
         category: record.category,
+        channel_id: existing?.channel_id,
+        category_id: existing?.category_id,
+        topic_ids: existing?.topic_ids || [],
         tags: normalizedTags,
-        cover:
-          existing?.cover ||
-          "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80",
+        cover: existing?.cover || "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80",
         quark_url: record.quark_url,
         extract_code: record.extract_code,
         publish_status: (record.publish_status || "draft") as PublishStatus,
-        published_at: record.published_at || new Date().toISOString()
-      };
-
-      saveResource(payload);
+        published_at: record.published_at || new Date().toISOString(),
+      });
       successCount += 1;
     } catch (error) {
       failures.push({
         row: rowNumber,
-        reason: error instanceof Error ? error.message : "导入失败"
+        reason: error instanceof Error ? error.message : "导入失败",
       });
     }
   }
@@ -291,189 +544,330 @@ export function importResourcesFromCsv(
   return {
     successCount,
     failureCount: failures.length,
-    failures
+    failures,
   };
 }
 
-export function recordEvent(event: Omit<TrackEvent, "event_time"> & { event_time?: string }) {
-  ensureDataFiles();
-  const completeEvent: TrackEvent = {
+export async function recordEvent(
+  event: Omit<TrackEvent, "event_time"> & { event_time?: string }
+) {
+  const normalizedEvent: TrackEvent = {
     ...event,
-    event_time: event.event_time || new Date().toISOString()
+    event_time: event.event_time || new Date().toISOString(),
   };
-  fs.appendFileSync(eventsFile, `${JSON.stringify(completeEvent)}\n`, "utf8");
-  return completeEvent;
+
+  await execute(
+    `INSERT INTO track_events (
+      name, event_time, session_id, anon_user_id, query_text, resource_id, result_rank,
+      result_count, from_page, referer, device, ua
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      normalizedEvent.name,
+      toSqlDateTime(normalizedEvent.event_time),
+      normalizedEvent.session_id || null,
+      normalizedEvent.anon_user_id || null,
+      normalizedEvent.query || null,
+      normalizedEvent.resource_id || null,
+      normalizedEvent.result_rank ?? null,
+      normalizedEvent.result_count ?? null,
+      normalizedEvent.from_page || null,
+      normalizedEvent.referer || null,
+      normalizedEvent.device || null,
+      normalizedEvent.ua || null,
+    ]
+  );
+
+  return normalizedEvent;
 }
 
-export function getEvents() {
-  ensureDataFiles();
-  const raw = fs.readFileSync(eventsFile, "utf8").trim();
-  if (!raw) {
-    return [] as TrackEvent[];
+export async function getAnalyticsSummary() {
+  const rows = await queryRows<EventRow>(
+    `SELECT name, event_time, session_id, anon_user_id, query_text, resource_id, result_rank,
+            result_count, from_page, referer, device, ua
+     FROM track_events
+     ORDER BY event_time DESC`
+  );
+
+  return summarizeEvents(
+    rows.map((row) => ({
+      name: row.name,
+      event_time: toIsoString(row.event_time),
+      session_id: row.session_id || undefined,
+      anon_user_id: row.anon_user_id || undefined,
+      query: row.query_text || undefined,
+      resource_id: row.resource_id || undefined,
+      result_rank: row.result_rank ?? undefined,
+      result_count: row.result_count ?? undefined,
+      from_page: row.from_page || undefined,
+      referer: row.referer || undefined,
+      device: row.device || undefined,
+      ua: row.ua || undefined,
+    }))
+  );
+}
+
+export async function getCategoryMap() {
+  const [categories, publishedResources] = await Promise.all([
+    getContentStructure(),
+    getPublishedResources(),
+  ]);
+  const counts = new Map<string, number>();
+
+  for (const resource of publishedResources) {
+    if (!resource.category_id) {
+      continue;
+    }
+    counts.set(resource.category_id, (counts.get(resource.category_id) || 0) + 1);
   }
 
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as TrackEvent);
+  return categories.categories
+    .filter((category) => category.status === "active")
+    .map((category) => ({
+      name: category.name,
+      slug: category.slug,
+      count: counts.get(category.id) || 0,
+    }))
+    .filter((category) => category.count > 0)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
 }
 
-export function getAnalyticsSummary() {
-  return summarizeEvents(getEvents());
-}
+export async function getTagMap(resources?: Resource[]) {
+  const resourceList = resources || (await getPublishedResources());
+  const map = new Map<string, { name: string; slug: string; count: number }>();
 
-export function getCategoryMap(resources = getPublishedResources()) {
-  const map = new Map<string, number>();
-  for (const resource of resources) {
-    map.set(resource.category, (map.get(resource.category) || 0) + 1);
-  }
-  return [...map.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, slug: slugify(name), count }));
-}
-
-export function getTagMap(resources = getPublishedResources()) {
-  const map = new Map<string, number>();
-  for (const resource of resources) {
+  for (const resource of resourceList) {
     for (const tag of resource.tags) {
-      map.set(tag, (map.get(tag) || 0) + 1);
+      const slug = slugify(tag);
+      const entry = map.get(slug);
+      if (entry) {
+        entry.count += 1;
+      } else {
+        map.set(slug, { name: tag, slug, count: 1 });
+      }
     }
   }
-  return [...map.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, slug: slugify(name), count }));
+
+  return [...map.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
 }
 
-export function getResourcesByCategorySlug(slug: string) {
-  return getPublishedResources().filter((resource) => slugify(resource.category) === slug);
-}
+export async function getResourcesByCategorySlug(slug: string) {
+  const structure = await getContentStructure();
+  const category = structure.categories.find((item) => item.slug === slug && item.status === "active");
+  const publishedResources = await getPublishedResources();
 
-export function getResourcesByTagSlug(slug: string) {
-  return getPublishedResources().filter((resource) =>
-    resource.tags.some((tag) => slugify(tag) === slug)
-  );
-}
-
-export function runSearch(query: string, page = 1): SearchResponse {
-  return searchResources(getPublishedResources(), query, page);
-}
-
-export function getContentStructure() {
-  return readJsonFile<ContentStructure>(contentStructureFile, {
-    site_profile: {
-      name: "",
-      tagline: "",
-      short_link: "",
-      positioning: ""
-    },
-    channels: [],
-    categories: [],
-    topics: []
-  });
-}
-
-export function getFeaturedChannels() {
-  return getContentStructure()
-    .channels.filter((channel) => channel.status === "active" && channel.featured)
-    .sort((a, b) => a.sort - b.sort);
-}
-
-export function getCategoriesByChannel(channelId: string) {
-  return getContentStructure()
-    .categories.filter((category) => category.channel_id === channelId && category.status === "active")
-    .sort((a, b) => a.sort - b.sort);
-}
-
-export function getFeaturedTopics() {
-  return getContentStructure()
-    .topics.filter((topic) => topic.status === "active" && topic.featured)
-    .sort((a, b) => a.sort - b.sort);
-}
-
-export function getTopicBySlug(slug: string) {
-  return (
-    getContentStructure().topics.find((topic) => topic.slug === slug && topic.status === "active") ||
-    null
-  );
-}
-
-export function getResourcesByChannelId(channelId: string) {
-  return getPublishedResources().filter((resource) => resource.channel_id === channelId);
-}
-
-export function getResourcesByCategoryId(categoryId: string) {
-  return getPublishedResources().filter((resource) => resource.category_id === categoryId);
-}
-
-export function getResourcesByTopicId(topicId: string) {
-  return getPublishedResources().filter((resource) => resource.topic_ids?.includes(topicId));
-}
-
-export function getContentStructureTree() {
-  const structure = getContentStructure();
-  const categoryMap = new Map<string, CategoryNode[]>();
-
-  for (const category of structure.categories.filter((item) => item.status === "active")) {
-    const existing = categoryMap.get(category.channel_id) || [];
-    existing.push(category);
-    categoryMap.set(category.channel_id, existing);
+  if (category) {
+    return publishedResources.filter((resource) => resource.category_id === category.id);
   }
+
+  return publishedResources.filter((resource) => slugify(resource.category) === slug);
+}
+
+export async function getResourcesByTagSlug(slug: string) {
+  const rows = await queryRows<RowDataPacket & { resource_id: string }>(
+    `SELECT resource_id FROM resource_tags WHERE tag_slug = ? ORDER BY sort_order ASC`,
+    [slug]
+  );
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const resources = await getPublishedResources();
+  const resourceIds = new Set(rows.map((row) => row.resource_id));
+  return resources.filter((resource) => resourceIds.has(resource.id));
+}
+
+export async function runSearch(query: string, page = 1): Promise<SearchResponse> {
+  const publishedResources = await getPublishedResources();
+  return searchResources(publishedResources, query, page);
+}
+
+export async function getContentStructure(): Promise<ContentStructure> {
+  const [siteProfileRows, channelRows, categoryRows, topicRows] = await Promise.all([
+    queryRows<SiteProfileRow>(
+      `SELECT name, tagline, short_link, positioning, featured_message FROM site_profile WHERE id = 1 LIMIT 1`
+    ),
+    queryRows<ChannelRow>(
+      `SELECT id, name, slug, description, sort_order, featured, status
+       FROM channels
+       ORDER BY featured DESC, sort_order ASC, name ASC`
+    ),
+    queryRows<CategoryRow>(
+      `SELECT id, channel_id, parent_id, name, slug, description, sort_order, featured, status
+       FROM categories
+       ORDER BY channel_id ASC, featured DESC, sort_order ASC, name ASC`
+    ),
+    queryRows<TopicRow>(
+      `SELECT id, category_id, name, slug, summary, sort_order, featured, status
+       FROM topics
+       ORDER BY category_id ASC, featured DESC, sort_order ASC, name ASC`
+    ),
+  ]);
+
+  const siteProfile = siteProfileRows[0];
+
+  return {
+    site_profile: {
+      name: siteProfile?.name || "夸克资料站",
+      tagline: siteProfile?.tagline || "搜索优先的夸克资料站",
+      short_link: siteProfile?.short_link || "",
+      positioning: siteProfile?.positioning || "通过数据库驱动频道、栏目、专题和资源。",
+      featured_message: siteProfile?.featured_message || undefined,
+    },
+    channels: channelRows.map<Channel>((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      sort: row.sort_order,
+      featured: Boolean(row.featured),
+      status: row.status,
+    })),
+    categories: categoryRows.map<CategoryNode>((row) => ({
+      id: row.id,
+      channel_id: row.channel_id,
+      parent_id: row.parent_id || undefined,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      sort: row.sort_order,
+      featured: Boolean(row.featured),
+      status: row.status,
+    })),
+    topics: topicRows.map<TopicNode>((row) => ({
+      id: row.id,
+      category_id: row.category_id,
+      name: row.name,
+      slug: row.slug,
+      summary: row.summary,
+      sort: row.sort_order,
+      featured: Boolean(row.featured),
+      status: row.status,
+    })),
+  };
+}
+
+export async function getFeaturedChannels() {
+  const structure = await getContentStructure();
+  return structure.channels.filter((channel) => channel.status === "active" && channel.featured);
+}
+
+export async function getFeaturedTopics() {
+  const structure = await getContentStructure();
+  return structure.topics.filter((topic) => topic.status === "active" && topic.featured);
+}
+
+export async function getTopicBySlug(slug: string) {
+  const rows = await queryRows<TopicRow>(
+    `SELECT id, category_id, name, slug, summary, sort_order, featured, status
+     FROM topics WHERE slug = ? AND status = 'active' LIMIT 1`,
+    [slug]
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  return {
+    id: row.id,
+    category_id: row.category_id,
+    name: row.name,
+    slug: row.slug,
+    summary: row.summary,
+    sort: row.sort_order,
+    featured: Boolean(row.featured),
+    status: row.status,
+  } as TopicNode;
+}
+
+export async function getResourcesByChannelId(channelId: string) {
+  const resources = await getPublishedResources();
+  return resources.filter((resource) => resource.channel_id === channelId);
+}
+
+export async function getResourcesByCategoryId(categoryId: string) {
+  const resources = await getPublishedResources();
+  return resources.filter((resource) => resource.category_id === categoryId);
+}
+
+export async function getResourcesByTopicId(topicId: string) {
+  const resources = await getPublishedResources();
+  return resources.filter((resource) => resource.topic_ids?.includes(topicId));
+}
+
+export async function getContentStructureTree() {
+  const [structure, publishedResources] = await Promise.all([
+    getContentStructure(),
+    getPublishedResources(),
+  ]);
 
   return structure.channels
     .filter((channel) => channel.status === "active")
-    .sort((a, b) => a.sort - b.sort)
-    .map((channel: Channel) => {
-      const categories = (categoryMap.get(channel.id) || []).sort((a, b) => a.sort - b.sort);
-      return {
-        ...channel,
-        resources: getResourcesByChannelId(channel.id),
-        categories: categories.map((category) => ({
+    .map((channel) => ({
+      ...channel,
+      resources: publishedResources.filter((resource) => resource.channel_id === channel.id),
+      categories: structure.categories
+        .filter((category) => category.channel_id === channel.id && category.status === "active")
+        .map((category) => ({
           ...category,
-          resources: getResourcesByCategoryId(category.id),
+          resources: publishedResources.filter((resource) => resource.category_id === category.id),
           topics: structure.topics
             .filter((topic) => topic.category_id === category.id && topic.status === "active")
-            .sort((a, b) => a.sort - b.sort)
             .map((topic) => ({
               ...topic,
-              resources: getResourcesByTopicId(topic.id)
-            }))
-        }))
-      };
-    });
+              resources: publishedResources.filter((resource) => resource.topic_ids?.includes(topic.id)),
+            })),
+        })),
+    }));
 }
 
-// ─── Feedback ────────────────────────────────────────────────────────────────
+export async function getFeedback(): Promise<Feedback[]> {
+  const rows = await queryRows<FeedbackRow>(
+    `SELECT id, resource_id, resource_title, resource_slug, reason, note, created_at, resolved
+     FROM feedback
+     ORDER BY created_at DESC`
+  );
 
-export function getFeedback(): Feedback[] {
-  ensureDataFiles();
-  const raw = fs.readFileSync(feedbackFile, "utf8").trim();
-  if (!raw) return [];
-  return raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as Feedback);
+  return rows.map((row) => ({
+    id: row.id,
+    resource_id: row.resource_id,
+    resource_title: row.resource_title,
+    resource_slug: row.resource_slug,
+    reason: row.reason,
+    note: row.note || undefined,
+    created_at: toIsoString(row.created_at),
+    resolved: Boolean(row.resolved),
+  }));
 }
 
-export function recordFeedback(
-  input: Pick<Feedback, "resource_id" | "resource_title" | "resource_slug" | "reason" | "note">
-): Feedback {
-  ensureDataFiles();
+export async function recordFeedback(
+  input: Omit<Feedback, "id" | "created_at" | "resolved">
+) {
   const feedback: Feedback = {
     ...input,
-    id: `fb_${Date.now().toString(36)}`,
+    id: randomUUID(),
     created_at: new Date().toISOString(),
     resolved: false,
   };
-  fs.appendFileSync(feedbackFile, `${JSON.stringify(feedback)}\n`, "utf8");
+
+  await execute(
+    `INSERT INTO feedback (
+      id, resource_id, resource_title, resource_slug, reason, note, created_at, resolved
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      feedback.id,
+      feedback.resource_id,
+      feedback.resource_title,
+      feedback.resource_slug,
+      feedback.reason,
+      feedback.note || null,
+      toSqlDateTime(feedback.created_at),
+      feedback.resolved ? 1 : 0,
+    ]
+  );
+
   return feedback;
 }
 
-export function resolveFeedback(id: string): void {
-  ensureDataFiles();
-  const items = getFeedback().map((item) =>
-    item.id === id ? { ...item, resolved: true } : item
-  );
-  fs.writeFileSync(feedbackFile, items.map((i) => JSON.stringify(i)).join("\n") + "\n", "utf8");
+export async function resolveFeedback(id: string) {
+  await execute(`UPDATE feedback SET resolved = 1 WHERE id = ?`, [id]);
 }

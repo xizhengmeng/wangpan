@@ -88,8 +88,7 @@
 
 ## 7. 说明
 
-- 资源存储在 `data/resources.json`
-- 行为事件存储在 `data/events.jsonl`
-- 反馈存储在 `data/feedback.jsonl`
-- 初始频道/栏目/专题结构存储在 `data/content-structure.json`
-- 当前为单机文件实现，适合原型和自部署初版
+- 运行时数据统一存储在 MySQL
+- 表结构见 [sql/schema.sql](/Users/k12/Work/Code/k12/nextjs/wangpan/sql/schema.sql)
+- 初始化和迁移说明见 [docs/mysql-setup.md](/Users/k12/Work/Code/k12/nextjs/wangpan/docs/mysql-setup.md)
+- `data/` 目录中的 JSON / JSONL 文件仅作为初始化迁移源，不再作为线上读写数据源

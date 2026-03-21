@@ -64,9 +64,11 @@ export default function AdminPage({
 
 export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx) =>
   requireAdminAuth(ctx, async () => {
-  const analytics = getAnalyticsSummary();
-  const resources = getAllResources();
-  const feedback = getFeedback().reverse();
+  const [analytics, resources, feedback] = await Promise.all([
+    getAnalyticsSummary(),
+    getAllResources(),
+    getFeedback(),
+  ]);
 
   const resourceMap = new Map(resources.map((r) => [r.id, r]));
 

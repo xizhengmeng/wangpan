@@ -83,7 +83,7 @@ export default function StructurePage({ tree }: StructurePageProps) {
 export const getServerSideProps: GetServerSideProps<StructurePageProps> = async () => {
   return {
     props: {
-      tree: getContentStructureTree()
+      tree: await getContentStructureTree()
     }
   };
 };

@@ -42,7 +42,7 @@ export default function TagPage({ tagName, slug, items }: TagPageProps) {
 
 export const getServerSideProps: GetServerSideProps<TagPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
-  const items = getResourcesByTagSlug(slug);
+  const items = await getResourcesByTagSlug(slug);
 
   if (items.length === 0) {
     return {

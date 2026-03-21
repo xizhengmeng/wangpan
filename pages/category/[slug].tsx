@@ -45,7 +45,7 @@ export default function CategoryPage({ categoryName, slug, items }: CategoryPage
 
 export const getServerSideProps: GetServerSideProps<CategoryPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
-  const items = getResourcesByCategorySlug(slug);
+  const items = await getResourcesByCategorySlug(slug);
 
   if (items.length === 0) {
     return {

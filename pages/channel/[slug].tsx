@@ -116,7 +116,7 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
 
 export const getServerSideProps: GetServerSideProps<ChannelPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
-  const channel = getContentStructureTree().find((item) => item.slug === slug);
+  const channel = (await getContentStructureTree()).find((item) => item.slug === slug);
 
   if (!channel) {
     return {

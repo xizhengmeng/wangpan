@@ -8,7 +8,7 @@ export default function GoPage() {
 
 export const getServerSideProps: GetServerSideProps = async ({ params, req }) => {
   const id = String(params?.id || "");
-  const resource = getResourceById(id);
+  const resource = await getResourceById(id);
 
   if (!resource) {
     return {
@@ -25,13 +25,13 @@ export const getServerSideProps: GetServerSideProps = async ({ params, req }) =>
     };
   }
 
-  recordEvent({
+  await recordEvent({
     name: "outbound_quark_click",
     resource_id: resource.id,
     referer: req.headers.referer,
     ua: req.headers["user-agent"]
   });
-  recordEvent({
+  await recordEvent({
     name: "outbound_quark_redirect_done",
     resource_id: resource.id,
     referer: req.headers.referer,

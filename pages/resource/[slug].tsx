@@ -140,7 +140,7 @@ export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async (
   res
 }) => {
   const slug = String(params?.slug || "");
-  const resource = getResourceBySlug(slug);
+  const resource = await getResourceBySlug(slug);
 
   if (!resource) {
     return {
@@ -157,7 +157,7 @@ export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async (
     };
   }
 
-  const related = getPublishedResources()
+  const related = (await getPublishedResources())
     .filter(
       (item) =>
         item.id !== resource.id &&

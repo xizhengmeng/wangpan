@@ -71,13 +71,13 @@ export default function TopicPage({ topic, categoryName, channelName, resources 
 
 export const getServerSideProps: GetServerSideProps<TopicPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
-  const topic = getTopicBySlug(slug);
+  const topic = await getTopicBySlug(slug);
 
   if (!topic) {
     return { notFound: true };
   }
 
-  const structure = getContentStructure();
+  const structure = await getContentStructure();
   const category = structure.categories.find((item) => item.id === topic.category_id);
   const channel = category
     ? structure.channels.find((item) => item.id === category.channel_id)
@@ -93,7 +93,7 @@ export const getServerSideProps: GetServerSideProps<TopicPageProps> = async ({ p
       },
       categoryName: category?.name || "未分类",
       channelName: channel?.name || "未分频道",
-      resources: getResourcesByTopicId(topic.id)
+      resources: await getResourcesByTopicId(topic.id)
     }
   };
 };
