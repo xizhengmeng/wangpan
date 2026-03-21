@@ -4,14 +4,24 @@ import { GetServerSideProps } from "next";
 import { SearchBox } from "@/components/SearchBox";
 import { Seo } from "@/components/Seo";
 import { absoluteUrl, siteConfig } from "@/lib/site";
-import { getAnalyticsSummary, getCategoryMap, getPublishedResources, getTagMap } from "@/lib/store";
-import { Resource } from "@/lib/types";
+import {
+  getAnalyticsSummary,
+  getContentStructure,
+  getFeaturedChannels,
+  getFeaturedTopics,
+  getPublishedResources,
+  getResourcesByTopicId,
+  getTagMap
+} from "@/lib/store";
+import { Channel, ContentStructure, Resource, TopicNode } from "@/lib/types";
 
 interface HomeProps {
   latestResources: Resource[];
   hotResources: Resource[];
-  categories: Array<{ name: string; slug: string; count: number }>;
   tags: Array<{ name: string; slug: string; count: number }>;
+  featuredChannels: Channel[];
+  featuredTopics: Array<TopicNode & { resources: Resource[] }>;
+  structure: ContentStructure;
   stats: {
     resourceCount: number;
     queryCount: number;
@@ -50,8 +60,10 @@ function rankLabel(index: number) {
 export default function Home({
   latestResources,
   hotResources,
-  categories,
   tags,
+  featuredChannels,
+  featuredTopics,
+  structure,
   stats
 }: HomeProps) {
   const jsonLd = {
@@ -66,11 +78,9 @@ export default function Home({
     }))
   };
 
-  const spotlight = hotResources[0] || latestResources[0];
-  const editorPicks = latestResources.slice(1, 4);
   const freshResources = latestResources.slice(0, 6);
-  const featuredCategories = categories.slice(0, 6);
   const featuredTags = tags.slice(0, 10);
+  const quickKeywords = ["考研", "PPT 模板", "Python", "英语四六级", "Excel", "简历模板"];
 
   return (
     <>
@@ -80,134 +90,129 @@ export default function Home({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="home-v3">
-        <section className="home-v3-hero">
-          <div className="home-v3-hero__main">
-            <span className="home-v3-hero__eyebrow">编辑型资料门户</span>
-            <h1>不是资源站壳子，是一个有方向感的资料首页。</h1>
+      <div className="home-v4">
+        <section className="home-v4-search">
+          <div className="home-v4-search__top">
+            <span className="home-v4-search__eyebrow">资料检索入口</span>
+            <h1>搜你要的资料</h1>
             <p>
-              用更强的首屏、明确的内容分区和更有张力的视觉层次，把“搜索资料、进入详情、完成下载”
-              这条路径做得更直觉。
+              课程、考试、模板、软件与整理专题，先用关键词定位，再进入频道或专题继续筛选。
             </p>
+          </div>
 
-            <div className="home-v3-hero__search">
-              <SearchBox />
+          <div className="home-v4-search__form">
+            <SearchBox />
+          </div>
+
+          <div className="home-v4-search__bottom">
+            <div className="home-v4-search__group">
+              <span className="home-v4-search__label">热门搜索</span>
+              <div className="home-v4-search__keywords">
+                {quickKeywords.map((keyword) => (
+                  <Link
+                    className="home-v4-search__keyword"
+                    href={`/search?q=${encodeURIComponent(keyword)}`}
+                    key={keyword}
+                  >
+                    {keyword}
+                  </Link>
+                ))}
+              </div>
             </div>
 
-            <div className="home-v3-hero__keywords">
-              {["考研", "PPT 模板", "Python", "英语四六级", "Excel", "简历模板"].map((keyword) => (
-                <Link
-                  className="home-v3-hero__keyword"
-                  href={`/search?q=${encodeURIComponent(keyword)}`}
-                  key={keyword}
-                >
-                  {keyword}
+            <div className="home-v4-search__group">
+              <span className="home-v4-search__label">快速进入</span>
+              <div className="home-v4-search__browse">
+                {featuredChannels.slice(0, 4).map((channel) => (
+                  <Link
+                    className="home-v4-search__browse-item"
+                    href={`/channel/${channel.slug}`}
+                    key={channel.id}
+                  >
+                    <strong>{channel.name}</strong>
+                    <span>进入频道</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="home-v4-section">
+          <div className="home-v4-section__head">
+            <div>
+              <span className="home-v4-section__eyebrow">Channels</span>
+              <h2>按频道浏览</h2>
+            </div>
+          </div>
+          <div className="home-v4-channel-grid">
+            {featuredChannels.map((channel) => {
+              const childCategories = structure.categories
+                .filter((item) => item.channel_id === channel.id && item.status === "active")
+                .slice(0, 3);
+
+              return (
+                <Link className="home-v4-channel-card" href={`/channel/${channel.slug}`} key={channel.id}>
+                  <strong>{channel.name}</strong>
+                  <p>{channel.description}</p>
+                  <div className="home-v4-channel-card__meta">
+                    {childCategories.map((category) => (
+                      <span key={category.id}>{category.name}</span>
+                    ))}
+                  </div>
                 </Link>
-              ))}
-            </div>
-          </div>
-
-          {spotlight ? (
-            <Link className="home-v3-spotlight" href={`/resource/${spotlight.slug}`}>
-              <div className="home-v3-spotlight__media">
-                <img src={spotlight.cover} alt={spotlight.title} loading="lazy" />
-              </div>
-              <div className="home-v3-spotlight__content">
-                <span className="home-v3-spotlight__badge">本周重点</span>
-                <h2>{spotlight.title}</h2>
-                <p>{spotlight.summary}</p>
-                <div className="home-v3-spotlight__meta">
-                  <span>{spotlight.category}</span>
-                  <span>更新于 {timeAgo(spotlight.updated_at)}</span>
-                </div>
-              </div>
-            </Link>
-          ) : null}
-        </section>
-
-        <section className="home-v3-rail">
-          <div className="home-v3-stats">
-            <div className="home-v3-stat">
-              <strong>{stats.resourceCount}</strong>
-              <span>资源库</span>
-            </div>
-            <div className="home-v3-stat">
-              <strong>{stats.categoryCount}</strong>
-              <span>主题分类</span>
-            </div>
-            <div className="home-v3-stat">
-              <strong>{stats.queryCount}</strong>
-              <span>热搜词</span>
-            </div>
-            <div className="home-v3-stat">
-              <strong>{stats.eventCount}</strong>
-              <span>行为事件</span>
-            </div>
-          </div>
-
-          <div className="home-v3-categories">
-            {featuredCategories.map((category, index) => (
-              <Link className="home-v3-category" href={`/category/${category.slug}`} key={category.slug}>
-                <span className="home-v3-category__index">{String(index + 1).padStart(2, "0")}</span>
-                <strong>{category.name}</strong>
-                <em>{category.count} 条资源</em>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
 
-        <div className="home-v3-layout">
-          <main className="home-v3-main">
-            <section className="home-v3-panel">
-              <div className="home-v3-panel__head">
+        <div className="home-v4-layout">
+          <main className="home-v4-main">
+            <section className="home-v4-section home-v4-panel">
+              <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v3-panel__label">Editor Picks</span>
-                  <h2>精选入口</h2>
+                  <span className="home-v4-section__eyebrow">Topics</span>
+                  <h2>重点专题</h2>
                 </div>
               </div>
-              <div className="home-v3-picks">
-                {editorPicks.map((resource) => (
-                  <Link className="home-v3-pick" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <div className="home-v3-pick__meta">
-                      <span>{resource.category}</span>
-                      <span>{timeAgo(resource.updated_at)}</span>
+              <div className="home-v4-topic-grid">
+                {featuredTopics.slice(0, 4).map((topic) => (
+                  <Link className="home-v4-topic-card" href={`/topic/${topic.slug}`} key={topic.id}>
+                    <div className="home-v4-topic-card__meta">
+                      <span>专题</span>
+                      <span>{topic.resources.length} 条资源</span>
                     </div>
-                    <h3>{resource.title}</h3>
-                    <p>{resource.summary}</p>
+                    <h3>{topic.name}</h3>
+                    <p>{topic.summary}</p>
+                    <div className="home-v4-topic-card__hint">
+                      {topic.resources[0]?.title || "等待补充资源"}
+                    </div>
                   </Link>
                 ))}
               </div>
             </section>
 
-            <section className="home-v3-panel">
-              <div className="home-v3-panel__head">
+            <section className="home-v4-section home-v4-panel">
+              <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v3-panel__label">Fresh Stack</span>
-                  <h2>最新资源流</h2>
+                  <span className="home-v4-section__eyebrow">Latest</span>
+                  <h2>最近更新</h2>
                 </div>
                 <Link href="/search?q=">查看更多</Link>
               </div>
-              <div className="home-v3-list">
+              <div className="home-v4-resource-list">
                 {freshResources.map((resource) => (
-                  <Link className="home-v3-item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <div className="home-v3-item__thumb">
+                  <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <div className="home-v4-resource-item__thumb">
                       <img src={resource.cover} alt={resource.title} loading="lazy" />
                     </div>
-                    <div className="home-v3-item__body">
-                      <div className="home-v3-item__tags">
-                        <span className="home-v3-item__category">{resource.category}</span>
-                        {resource.tags.slice(0, 2).map((tag) => (
-                          <span className="home-v3-item__tag" key={tag}>
-                            {tag}
-                          </span>
-                        ))}
+                    <div className="home-v4-resource-item__body">
+                      <div className="home-v4-resource-item__meta">
+                        <span className="home-v4-resource-item__category">{resource.category}</span>
+                        <span>{timeAgo(resource.updated_at)}</span>
                       </div>
                       <h3>{resource.title}</h3>
                       <p>{resource.summary}</p>
-                    </div>
-                    <div className="home-v3-item__meta">
-                      <span>{timeAgo(resource.updated_at)}</span>
-                      <strong>详情</strong>
                     </div>
                   </Link>
                 ))}
@@ -215,42 +220,62 @@ export default function Home({
             </section>
           </main>
 
-          <aside className="home-v3-side">
-            <section className="home-v3-panel home-v3-manifesto">
-              <span className="home-v3-manifesto__mark">夸</span>
-              <h2>先整理，再下载。</h2>
-              <p>
-                首页用搜索和精选建立第一印象，分类负责分流，详情页负责转化。整个站不再像传统资源论坛。
-              </p>
-            </section>
-
-            <section className="home-v3-panel">
-              <div className="home-v3-panel__head">
+          <aside className="home-v4-side">
+            <section className="home-v4-panel home-v4-card">
+              <div className="home-v4-card__head">
+                <span className="home-v4-card__mark">夸</span>
                 <div>
-                  <span className="home-v3-panel__label">Hot Now</span>
-                  <h2>热门资源榜</h2>
+                  <h2>站点概览</h2>
+                  <p>{structure.site_profile.positioning}</p>
                 </div>
               </div>
-              <div className="home-v3-rank">
+              <div className="home-v4-overview">
+                <div className="home-v4-overview__item">
+                  <strong>{stats.resourceCount}</strong>
+                  <span>已收录资源</span>
+                </div>
+                <div className="home-v4-overview__item">
+                  <strong>{featuredChannels.length}</strong>
+                  <span>主频道</span>
+                </div>
+                <div className="home-v4-overview__item">
+                  <strong>{stats.categoryCount}</strong>
+                  <span>栏目</span>
+                </div>
+                <div className="home-v4-overview__item">
+                  <strong>{featuredTopics.length}</strong>
+                  <span>重点专题</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <span className="home-v4-section__eyebrow">Hot</span>
+                  <h2>热门资源</h2>
+                </div>
+              </div>
+              <div className="home-v4-rank">
                 {hotResources.slice(0, 5).map((resource, index) => (
-                  <Link className="home-v3-rank__item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <span className="home-v3-rank__index">{rankLabel(index)}</span>
-                    <span className="home-v3-rank__title">{resource.title}</span>
+                  <Link className="home-v4-rank__item" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <span className="home-v4-rank__index">{rankLabel(index)}</span>
+                    <span className="home-v4-rank__title">{resource.title}</span>
                   </Link>
                 ))}
               </div>
             </section>
 
-            <section className="home-v3-panel">
-              <div className="home-v3-panel__head">
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v3-panel__label">Long Tail</span>
+                  <span className="home-v4-section__eyebrow">Tags</span>
                   <h2>热门标签</h2>
                 </div>
               </div>
-              <div className="home-v3-tags">
+              <div className="home-v4-tags">
                 {featuredTags.map((tag) => (
-                  <Link className="home-v3-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
+                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
                     <span>{tag.name}</span>
                     <em>{tag.count}</em>
                   </Link>
@@ -267,6 +292,7 @@ export default function Home({
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   const publishedResources = getPublishedResources();
   const analytics = getAnalyticsSummary();
+  const structure = getContentStructure();
   const hotResourceMap = new Map(publishedResources.map((resource) => [resource.id, resource]));
   const hotResources =
     analytics.topResources
@@ -274,20 +300,24 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .filter(Boolean)
       .slice(0, 6) || [];
 
-  const categoryMap = getCategoryMap(publishedResources);
   const tagMap = getTagMap(publishedResources);
 
   return {
     props: {
       latestResources: publishedResources.slice(0, 12),
       hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 6),
-      categories: categoryMap.slice(0, 12),
       tags: tagMap.slice(0, 18),
+      featuredChannels: getFeaturedChannels().slice(0, 6),
+      featuredTopics: getFeaturedTopics().map((topic) => ({
+        ...topic,
+        resources: getResourcesByTopicId(topic.id)
+      })),
+      structure,
       stats: {
         resourceCount: publishedResources.length,
         queryCount: analytics.topQueries.reduce((total, item) => total + item.count, 0),
         eventCount: analytics.totalEvents,
-        categoryCount: categoryMap.length
+        categoryCount: structure.categories.filter((item) => item.status === "active").length
       }
     }
   };

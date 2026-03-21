@@ -26,6 +26,7 @@ export function Layout({ children }: PropsWithChildren) {
           </div>
 
           <Link href="/admin/resources" className="btn-admin">后台</Link>
+          <Link href="/admin/structure" className="btn-admin btn-admin--ghost">结构</Link>
         </div>
       </header>
 

@@ -1,0 +1,969 @@
+{
+  "site_profile": {
+    "name": "资源小狂人",
+    "tagline": "全网精选夸克网盘资料导航与整理站",
+    "short_link": "https://link3.cc/xiaokuangren",
+    "positioning": "以整理型页面为主、低风险下载资源为辅的资料搜索站",
+    "featured_message": "新人转存立即扩容"
+  },
+  "channels": [
+    {
+      "id": "channel_education_exam",
+      "name": "教育考试",
+      "slug": "education-exam",
+      "description": "覆盖少儿到职业资格考试的资料频道，适合按学习阶段和考试方向检索。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_skill_growth",
+      "name": "兴趣技能",
+      "slug": "skill-growth",
+      "description": "围绕 AI、办公、编程、摄影剪辑和增长类内容的技能提升频道。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_chinese_reading",
+      "name": "语文阅读",
+      "slug": "chinese-reading",
+      "description": "围绕阅读理解、人文内容和长期阅读专题构建的阅读频道。",
+      "sort": 30,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_language_learning",
+      "name": "语言学习",
+      "slug": "language-learning",
+      "description": "以英语、日语、韩语和更多外语为核心的语言学习频道。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_science_humanities",
+      "name": "科学探索",
+      "slug": "science-humanities",
+      "description": "科学探索和社科人文内容的频道，偏知识扩展与长期阅读。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "channel_media_entertainment",
+      "name": "影视放映",
+      "slug": "media-entertainment",
+      "description": "电影、美剧、动漫、纪录片和剧集内容频道。",
+      "sort": 60,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_software_tools",
+      "name": "软件工具",
+      "slug": "software-tools",
+      "description": "软件、插件、模板、音视频素材和书签类资源频道。",
+      "sort": 70,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "channel_fun_relax",
+      "name": "休闲解压",
+      "slug": "fun-relax",
+      "description": "音乐、漫画、游戏和有声播客类内容频道。",
+      "sort": 80,
+      "status": "active"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat_kids",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "少儿专区",
+      "slug": "kids-zone",
+      "description": "少儿启蒙、兴趣课程和基础学习资料。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_primary",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "小学专区",
+      "slug": "primary-school",
+      "description": "小学阶段同步学习与综合提升资料。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_middle_school",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "初中专区",
+      "slug": "middle-school",
+      "description": "初中课程、提升资料和阶段性练习内容。",
+      "sort": 30,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_high_school",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "高中专区",
+      "slug": "high-school",
+      "description": "高中同步和高考相关内容的资料栏目。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_college_exam",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "大学与升学",
+      "slug": "college-and-upgrade",
+      "description": "大学、专升本、四六级和考研等大学阶段资料总类。",
+      "sort": 50,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_vocational_exam",
+      "channel_id": "channel_education_exam",
+      "parent_id": null,
+      "name": "职业资格考试",
+      "slug": "professional-certification",
+      "description": "教资、法考、建造师、医师等职业资格类考试资料。",
+      "sort": 60,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_skill_ai",
+      "channel_id": "channel_skill_growth",
+      "parent_id": null,
+      "name": "人工智能",
+      "slug": "artificial-intelligence",
+      "description": "AI 工具、提示词、课程和实战资料。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_skill_office",
+      "channel_id": "channel_skill_growth",
+      "parent_id": null,
+      "name": "办公宝典",
+      "slug": "office-skills",
+      "description": "Office、Excel、PPT 和办公提效资料。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_skill_creative",
+      "channel_id": "channel_skill_growth",
+      "parent_id": null,
+      "name": "创作与运营",
+      "slug": "creative-and-growth",
+      "description": "摄影、剪辑、抖音运营和网赚销售类资料。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "cat_skill_tech",
+      "channel_id": "channel_skill_growth",
+      "parent_id": null,
+      "name": "编程开发",
+      "slug": "programming-development",
+      "description": "编程开发与技术实战资料。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_skill_courses",
+      "channel_id": "channel_skill_growth",
+      "parent_id": null,
+      "name": "学习攻略与课程",
+      "slug": "learning-guides-and-courses",
+      "description": "学习方法、课程汇总和专题路线图。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "cat_reading_core",
+      "channel_id": "channel_chinese_reading",
+      "parent_id": null,
+      "name": "语文阅读主分区",
+      "slug": "chinese-reading-core",
+      "description": "语文阅读主分区和基础阅读栏目。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_reading_topics",
+      "channel_id": "channel_chinese_reading",
+      "parent_id": null,
+      "name": "语文阅读专题",
+      "slug": "chinese-reading-topics",
+      "description": "按内容主题组织的阅读专题栏目。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_lang_core",
+      "channel_id": "channel_language_learning",
+      "parent_id": null,
+      "name": "主流语言",
+      "slug": "major-languages",
+      "description": "英语、日语、韩语等主流语言学习栏目。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_lang_more",
+      "channel_id": "channel_language_learning",
+      "parent_id": null,
+      "name": "更多语言",
+      "slug": "more-languages",
+      "description": "泰语、俄语、德语、法语等扩展语言栏目。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "cat_science",
+      "channel_id": "channel_science_humanities",
+      "parent_id": null,
+      "name": "科学探索",
+      "slug": "science-exploration",
+      "description": "自然科学和基础科学内容。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "cat_humanities",
+      "channel_id": "channel_science_humanities",
+      "parent_id": null,
+      "name": "社科人文堂",
+      "slug": "social-humanities",
+      "description": "社科、人文、历史与思想内容。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "cat_movies",
+      "channel_id": "channel_media_entertainment",
+      "parent_id": null,
+      "name": "电影与剧集",
+      "slug": "movies-and-series",
+      "description": "电影、美剧、港剧、国产剧等栏目总类。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_anime_doc",
+      "channel_id": "channel_media_entertainment",
+      "parent_id": null,
+      "name": "动漫与纪录片",
+      "slug": "anime-and-documentary",
+      "description": "动漫番剧、纪录片和日韩内容栏目。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "cat_short_drama",
+      "channel_id": "channel_media_entertainment",
+      "parent_id": null,
+      "name": "短剧专区",
+      "slug": "short-drama",
+      "description": "短剧内容的专题入口。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "cat_software_platform",
+      "channel_id": "channel_software_tools",
+      "parent_id": null,
+      "name": "软件平台",
+      "slug": "software-platforms",
+      "description": "安卓、苹果、电脑软件分类。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_software_assets",
+      "channel_id": "channel_software_tools",
+      "parent_id": null,
+      "name": "素材与模板",
+      "slug": "assets-and-templates",
+      "description": "模板素材、音效素材、视频素材等栏目。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "cat_software_tools_misc",
+      "channel_id": "channel_software_tools",
+      "parent_id": null,
+      "name": "插件与书签",
+      "slug": "plugins-and-bookmarks",
+      "description": "宝藏插件、卡片牌组和网站书签类栏目。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "cat_fun_audio",
+      "channel_id": "channel_fun_relax",
+      "parent_id": null,
+      "name": "音乐与播客",
+      "slug": "music-and-podcast",
+      "description": "音乐馆和有声播客内容。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "cat_fun_comic_game",
+      "channel_id": "channel_fun_relax",
+      "parent_id": null,
+      "name": "漫画与游戏",
+      "slug": "comic-and-games",
+      "description": "漫画屋和游戏厅内容。",
+      "sort": 20,
+      "status": "active"
+    }
+  ],
+  "topics": [
+    {
+      "id": "topic_college_upgrade",
+      "category_id": "cat_college_exam",
+      "name": "专升本区",
+      "slug": "college-upgrade",
+      "summary": "专升本考试与课程资料专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_college_regular",
+      "category_id": "cat_college_exam",
+      "name": "大学专区",
+      "slug": "college-zone",
+      "summary": "大学课程和学科学习资料专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_cet",
+      "category_id": "cat_college_exam",
+      "name": "四六级区",
+      "slug": "cet-zone",
+      "summary": "英语四六级资料专题。",
+      "sort": 30,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_kaoyan",
+      "category_id": "cat_college_exam",
+      "name": "考研专区",
+      "slug": "kaoyan-zone",
+      "summary": "考研资料和备考整理专题。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_teacher",
+      "category_id": "cat_vocational_exam",
+      "name": "教资专区",
+      "slug": "teacher-certificate",
+      "summary": "教师资格证专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_civil_service",
+      "category_id": "cat_vocational_exam",
+      "name": "考公专区",
+      "slug": "civil-service",
+      "summary": "公务员考试专题。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_army",
+      "category_id": "cat_vocational_exam",
+      "name": "军队文职",
+      "slug": "army-civilian",
+      "summary": "军队文职考试专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_tax",
+      "category_id": "cat_vocational_exam",
+      "name": "税务师区",
+      "slug": "tax-adviser",
+      "summary": "税务师考试专题。",
+      "sort": 40,
+      "status": "active"
+    },
+    {
+      "id": "topic_cpa",
+      "category_id": "cat_vocational_exam",
+      "name": "注册会计",
+      "slug": "certified-public-accountant",
+      "summary": "注册会计师考试专题。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "topic_builder",
+      "category_id": "cat_vocational_exam",
+      "name": "建造师区",
+      "slug": "builder-exam",
+      "summary": "建造师考试专题。",
+      "sort": 60,
+      "status": "active"
+    },
+    {
+      "id": "topic_doctor",
+      "category_id": "cat_vocational_exam",
+      "name": "执业医师",
+      "slug": "licensed-doctor",
+      "summary": "执业医师考试专题。",
+      "sort": 70,
+      "status": "active"
+    },
+    {
+      "id": "topic_bank",
+      "category_id": "cat_vocational_exam",
+      "name": "银行从业",
+      "slug": "banking-exam",
+      "summary": "银行从业考试专题。",
+      "sort": 80,
+      "status": "active"
+    },
+    {
+      "id": "topic_computer_exam",
+      "category_id": "cat_vocational_exam",
+      "name": "考计算机",
+      "slug": "computer-certification",
+      "summary": "计算机类考试专题。",
+      "sort": 90,
+      "status": "active"
+    },
+    {
+      "id": "topic_law_exam",
+      "category_id": "cat_vocational_exam",
+      "name": "法考专区",
+      "slug": "law-exam",
+      "summary": "法律职业资格考试专题。",
+      "sort": 100,
+      "status": "active"
+    },
+    {
+      "id": "topic_ai",
+      "category_id": "cat_skill_ai",
+      "name": "人工智能",
+      "slug": "ai-zone",
+      "summary": "AI 工具、模型、提示词和课程整理专题。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_office",
+      "category_id": "cat_skill_office",
+      "name": "办公宝典",
+      "slug": "office-zone",
+      "summary": "办公提效和 Office 实战资料。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_learning_guides",
+      "category_id": "cat_skill_courses",
+      "name": "学习攻略",
+      "slug": "learning-guides",
+      "summary": "学习方法、路线图和备考规划专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_paid_courses",
+      "category_id": "cat_skill_courses",
+      "name": "付费课程",
+      "slug": "paid-courses",
+      "summary": "课程导航与整理专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_douyin",
+      "category_id": "cat_skill_creative",
+      "name": "抖音运营",
+      "slug": "douyin-growth",
+      "summary": "短视频与抖音运营专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_photo_video",
+      "category_id": "cat_skill_creative",
+      "name": "摄影剪辑",
+      "slug": "photo-and-editing",
+      "summary": "摄影、剪辑和后期专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_sales",
+      "category_id": "cat_skill_creative",
+      "name": "网赚销售",
+      "slug": "sales-and-side-hustle",
+      "summary": "销售、变现和增长专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_programming",
+      "category_id": "cat_skill_tech",
+      "name": "编程开发",
+      "slug": "programming-zone",
+      "summary": "编程开发、项目实战和技术工具专题。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_zone_one",
+      "category_id": "cat_reading_core",
+      "name": "语文阅读一区",
+      "slug": "reading-zone-one",
+      "summary": "语文阅读基础分区一。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_zone_two",
+      "category_id": "cat_reading_core",
+      "name": "语文阅读二区",
+      "slug": "reading-zone-two",
+      "summary": "语文阅读基础分区二。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_bilingual",
+      "category_id": "cat_reading_topics",
+      "name": "英汉双语阅读专区",
+      "slug": "bilingual-reading",
+      "summary": "语文阅读与英汉双语结合专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_comics",
+      "category_id": "cat_reading_topics",
+      "name": "半小时漫画专区",
+      "slug": "half-hour-comics",
+      "summary": "半小时漫画相关阅读专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_zhihu",
+      "category_id": "cat_reading_topics",
+      "name": "知乎严选专区",
+      "slug": "zhihu-selection",
+      "summary": "知乎严选内容专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_tianya",
+      "category_id": "cat_reading_topics",
+      "name": "天涯神贴专区",
+      "slug": "tianya-classics",
+      "summary": "天涯神贴与经典网文专题。",
+      "sort": 40,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_encyclopedia",
+      "category_id": "cat_reading_topics",
+      "name": "百科全书专区",
+      "slug": "encyclopedia-zone",
+      "summary": "百科类阅读和知识扩展专题。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_classics",
+      "category_id": "cat_reading_topics",
+      "name": "四大名著专区",
+      "slug": "four-classics",
+      "summary": "四大名著阅读专题。",
+      "sort": 60,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_reading_douban",
+      "category_id": "cat_reading_topics",
+      "name": "豆瓣畅销书专区",
+      "slug": "douban-bestsellers",
+      "summary": "豆瓣畅销书与热门读物专题。",
+      "sort": 70,
+      "status": "active"
+    },
+    {
+      "id": "topic_chinese",
+      "category_id": "cat_lang_core",
+      "name": "国语专区",
+      "slug": "mandarin-zone",
+      "summary": "国语学习专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_cantonese",
+      "category_id": "cat_lang_core",
+      "name": "粤语专区",
+      "slug": "cantonese-zone",
+      "summary": "粤语学习专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_english",
+      "category_id": "cat_lang_core",
+      "name": "英语小狂人",
+      "slug": "english-crazy-zone",
+      "summary": "英语学习资料专题。",
+      "sort": 30,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_japanese",
+      "category_id": "cat_lang_core",
+      "name": "日语专区",
+      "slug": "japanese-zone",
+      "summary": "日语学习资料专题。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_korean",
+      "category_id": "cat_lang_core",
+      "name": "韩语专区",
+      "slug": "korean-zone",
+      "summary": "韩语学习资料专题。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "topic_thai",
+      "category_id": "cat_lang_more",
+      "name": "泰语专区",
+      "slug": "thai-zone",
+      "summary": "泰语学习专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_russian",
+      "category_id": "cat_lang_more",
+      "name": "俄语专区",
+      "slug": "russian-zone",
+      "summary": "俄语学习专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_german",
+      "category_id": "cat_lang_more",
+      "name": "德语专区",
+      "slug": "german-zone",
+      "summary": "德语学习专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_french",
+      "category_id": "cat_lang_more",
+      "name": "法语专区",
+      "slug": "french-zone",
+      "summary": "法语学习专题。",
+      "sort": 40,
+      "status": "active"
+    },
+    {
+      "id": "topic_spanish",
+      "category_id": "cat_lang_more",
+      "name": "西班牙语",
+      "slug": "spanish-zone",
+      "summary": "西班牙语学习专题。",
+      "sort": 50,
+      "status": "active"
+    },
+    {
+      "id": "topic_portuguese",
+      "category_id": "cat_lang_more",
+      "name": "葡萄牙语",
+      "slug": "portuguese-zone",
+      "summary": "葡萄牙语学习专题。",
+      "sort": 60,
+      "status": "active"
+    },
+    {
+      "id": "topic_italian",
+      "category_id": "cat_lang_more",
+      "name": "意大利语",
+      "slug": "italian-zone",
+      "summary": "意大利语学习专题。",
+      "sort": 70,
+      "status": "active"
+    },
+    {
+      "id": "topic_more_languages",
+      "category_id": "cat_lang_more",
+      "name": "更多外语",
+      "slug": "more-language-zone",
+      "summary": "更多外语总入口。",
+      "sort": 80,
+      "status": "active"
+    },
+    {
+      "id": "topic_science",
+      "category_id": "cat_science",
+      "name": "科学探索",
+      "slug": "science-zone",
+      "summary": "科学探索总专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_humanities",
+      "category_id": "cat_humanities",
+      "name": "社科人文",
+      "slug": "humanities-zone",
+      "summary": "社科与人文总专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_movies",
+      "category_id": "cat_movies",
+      "name": "电影小狂人",
+      "slug": "movie-crazy-zone",
+      "summary": "电影精选内容专题。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_us_series",
+      "category_id": "cat_movies",
+      "name": "美剧专区",
+      "slug": "us-series",
+      "summary": "美剧内容专题。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_hk_series",
+      "category_id": "cat_movies",
+      "name": "港剧专区",
+      "slug": "hk-series",
+      "summary": "港剧内容专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_cn_series",
+      "category_id": "cat_movies",
+      "name": "国产剧集",
+      "slug": "cn-series",
+      "summary": "国产剧集专题。",
+      "sort": 40,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_anime",
+      "category_id": "cat_anime_doc",
+      "name": "动漫番剧",
+      "slug": "anime-zone",
+      "summary": "动漫番剧专题。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_documentary",
+      "category_id": "cat_anime_doc",
+      "name": "纪录片库",
+      "slug": "documentary-zone",
+      "summary": "纪录片专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_jp_kr_media",
+      "category_id": "cat_anime_doc",
+      "name": "日韩专区",
+      "slug": "japan-korea-media",
+      "summary": "日韩影视内容专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_short_drama",
+      "category_id": "cat_short_drama",
+      "name": "短剧专区",
+      "slug": "short-drama-zone",
+      "summary": "短剧内容专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_android",
+      "category_id": "cat_software_platform",
+      "name": "安卓软件",
+      "slug": "android-apps",
+      "summary": "安卓软件专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_ios",
+      "category_id": "cat_software_platform",
+      "name": "苹果软件",
+      "slug": "ios-apps",
+      "summary": "苹果软件专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_desktop",
+      "category_id": "cat_software_platform",
+      "name": "电脑软件",
+      "slug": "desktop-software",
+      "summary": "电脑软件专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_templates",
+      "category_id": "cat_software_assets",
+      "name": "模板素材",
+      "slug": "template-assets",
+      "summary": "模板素材专题。",
+      "sort": 10,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_audio_assets",
+      "category_id": "cat_software_assets",
+      "name": "音效素材",
+      "slug": "audio-assets",
+      "summary": "音效素材专题。",
+      "sort": 20,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_video_assets",
+      "category_id": "cat_software_assets",
+      "name": "视频素材",
+      "slug": "video-assets",
+      "summary": "视频素材专题。",
+      "sort": 30,
+      "featured": true,
+      "status": "active"
+    },
+    {
+      "id": "topic_plugins",
+      "category_id": "cat_software_tools_misc",
+      "name": "宝藏插件",
+      "slug": "plugins-zone",
+      "summary": "插件和小工具专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_card_decks",
+      "category_id": "cat_software_tools_misc",
+      "name": "卡片牌组",
+      "slug": "card-decks",
+      "summary": "卡片牌组专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_bookmarks",
+      "category_id": "cat_software_tools_misc",
+      "name": "网站书签",
+      "slug": "site-bookmarks",
+      "summary": "网站书签整理专题。",
+      "sort": 30,
+      "status": "active"
+    },
+    {
+      "id": "topic_music",
+      "category_id": "cat_fun_audio",
+      "name": "音乐馆",
+      "slug": "music-hall",
+      "summary": "音乐内容专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_podcast",
+      "category_id": "cat_fun_audio",
+      "name": "有声播客（精品）",
+      "slug": "podcast-premium",
+      "summary": "有声播客专题。",
+      "sort": 20,
+      "status": "active"
+    },
+    {
+      "id": "topic_comics",
+      "category_id": "cat_fun_comic_game",
+      "name": "漫画屋",
+      "slug": "comic-house",
+      "summary": "漫画内容专题。",
+      "sort": 10,
+      "status": "active"
+    },
+    {
+      "id": "topic_games",
+      "category_id": "cat_fun_comic_game",
+      "name": "游戏厅",
+      "slug": "game-hall",
+      "summary": "游戏内容专题。",
+      "sort": 20,
+      "status": "active"
+    }
+  ]
+}

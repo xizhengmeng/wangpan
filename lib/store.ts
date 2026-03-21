@@ -5,6 +5,9 @@ import { summarizeEvents } from "@/lib/analytics";
 import { slugify } from "@/lib/format";
 import { searchResources } from "@/lib/search";
 import {
+  CategoryNode,
+  Channel,
+  ContentStructure,
   CsvImportResult,
   Feedback,
   FeedbackReason,
@@ -18,6 +21,7 @@ const dataDir = path.join(process.cwd(), "data");
 const resourceFile = path.join(dataDir, "resources.json");
 const eventsFile = path.join(dataDir, "events.jsonl");
 const feedbackFile = path.join(dataDir, "feedback.jsonl");
+const contentStructureFile = path.join(dataDir, "content-structure.json");
 
 function ensureDataFiles() {
   if (!fs.existsSync(dataDir)) {
@@ -34,6 +38,27 @@ function ensureDataFiles() {
 
   if (!fs.existsSync(feedbackFile)) {
     fs.writeFileSync(feedbackFile, "");
+  }
+
+  if (!fs.existsSync(contentStructureFile)) {
+    fs.writeFileSync(
+      contentStructureFile,
+      JSON.stringify(
+        {
+          site_profile: {
+            name: "",
+            tagline: "",
+            short_link: "",
+            positioning: ""
+          },
+          channels: [],
+          categories: [],
+          topics: []
+        },
+        null,
+        2
+      ) + "\n"
+    );
   }
 }
 
@@ -332,6 +357,90 @@ export function getResourcesByTagSlug(slug: string) {
 
 export function runSearch(query: string, page = 1): SearchResponse {
   return searchResources(getPublishedResources(), query, page);
+}
+
+export function getContentStructure() {
+  return readJsonFile<ContentStructure>(contentStructureFile, {
+    site_profile: {
+      name: "",
+      tagline: "",
+      short_link: "",
+      positioning: ""
+    },
+    channels: [],
+    categories: [],
+    topics: []
+  });
+}
+
+export function getFeaturedChannels() {
+  return getContentStructure()
+    .channels.filter((channel) => channel.status === "active" && channel.featured)
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export function getCategoriesByChannel(channelId: string) {
+  return getContentStructure()
+    .categories.filter((category) => category.channel_id === channelId && category.status === "active")
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export function getFeaturedTopics() {
+  return getContentStructure()
+    .topics.filter((topic) => topic.status === "active" && topic.featured)
+    .sort((a, b) => a.sort - b.sort);
+}
+
+export function getTopicBySlug(slug: string) {
+  return (
+    getContentStructure().topics.find((topic) => topic.slug === slug && topic.status === "active") ||
+    null
+  );
+}
+
+export function getResourcesByChannelId(channelId: string) {
+  return getPublishedResources().filter((resource) => resource.channel_id === channelId);
+}
+
+export function getResourcesByCategoryId(categoryId: string) {
+  return getPublishedResources().filter((resource) => resource.category_id === categoryId);
+}
+
+export function getResourcesByTopicId(topicId: string) {
+  return getPublishedResources().filter((resource) => resource.topic_ids?.includes(topicId));
+}
+
+export function getContentStructureTree() {
+  const structure = getContentStructure();
+  const categoryMap = new Map<string, CategoryNode[]>();
+
+  for (const category of structure.categories.filter((item) => item.status === "active")) {
+    const existing = categoryMap.get(category.channel_id) || [];
+    existing.push(category);
+    categoryMap.set(category.channel_id, existing);
+  }
+
+  return structure.channels
+    .filter((channel) => channel.status === "active")
+    .sort((a, b) => a.sort - b.sort)
+    .map((channel: Channel) => {
+      const categories = (categoryMap.get(channel.id) || []).sort((a, b) => a.sort - b.sort);
+      return {
+        ...channel,
+        resources: getResourcesByChannelId(channel.id),
+        categories: categories.map((category) => ({
+          ...category,
+          resources: getResourcesByCategoryId(category.id),
+          topics: structure.topics
+            .filter((topic) => topic.category_id === category.id && topic.status === "active")
+            .sort((a, b) => a.sort - b.sort)
+            .map((topic) => ({
+              ...topic,
+              resources: getResourcesByTopicId(topic.id)
+            }))
+        }))
+      };
+    });
 }
 
 // ─── Feedback ────────────────────────────────────────────────────────────────

@@ -1,7 +1,9 @@
-import { GetServerSideProps } from "next";
+import { GetServerSideProps, NextPage } from "next";
+import type { ReactElement } from "react";
 
 import { AdminResourcesClient } from "@/components/AdminResourcesClient";
 import { Seo } from "@/components/Seo";
+import { requireAdminAuth } from "@/lib/auth";
 import { getAllResources, getAnalyticsSummary, getFeedback } from "@/lib/store";
 import { Feedback, Resource } from "@/lib/types";
 
@@ -60,7 +62,8 @@ export default function AdminPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () => {
+export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx) =>
+  requireAdminAuth(ctx, async () => {
   const analytics = getAnalyticsSummary();
   const resources = getAllResources();
   const feedback = getFeedback().reverse();
@@ -105,4 +108,7 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async () =
       feedbackItems: feedback,
     },
   };
-};
+  });
+
+(AdminPage as NextPage & { getLayout: (page: ReactElement) => ReactElement }).getLayout =
+  (page: ReactElement) => page;

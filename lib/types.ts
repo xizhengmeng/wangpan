@@ -6,6 +6,9 @@ export interface Resource {
   slug: string;
   summary: string;
   category: string;
+  channel_id?: string;
+  category_id?: string;
+  topic_ids?: string[];
   tags: string[];
   cover: string;
   quark_url: string;
@@ -70,4 +73,50 @@ export interface Feedback {
   note?: string;
   created_at: string;
   resolved: boolean;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  sort: number;
+  featured?: boolean;
+  status: "active" | "hidden";
+}
+
+export interface CategoryNode {
+  id: string;
+  channel_id: string;
+  parent_id?: string | null;
+  name: string;
+  slug: string;
+  description: string;
+  sort: number;
+  featured?: boolean;
+  status: "active" | "hidden";
+}
+
+export interface TopicNode {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  summary: string;
+  sort: number;
+  featured?: boolean;
+  status: "active" | "hidden";
+}
+
+export interface ContentStructure {
+  site_profile: {
+    name: string;
+    tagline: string;
+    short_link: string;
+    positioning: string;
+    featured_message?: string;
+  };
+  channels: Channel[];
+  categories: CategoryNode[];
+  topics: TopicNode[];
 }

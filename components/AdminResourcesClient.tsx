@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { ChangeEvent, FormEvent, useMemo, useState, useTransition } from "react";
 
 import { Feedback, Resource } from "@/lib/types";
@@ -61,6 +62,7 @@ export function AdminResourcesClient({
   initialFeedback,
 }: AdminResourcesClientProps) {
   const [tab, setTab] = useState<Tab>("dashboard");
+  const router = useRouter();
   const [resources, setResources] = useState(initialResources);
   const [form, setForm] = useState(emptyForm);
   const [csv, setCsv] = useState("");
@@ -188,6 +190,11 @@ export function AdminResourcesClient({
     });
   }
 
+  async function handleLogout() {
+    await fetch("/api/admin/login", { method: "DELETE" });
+    router.replace("/admin/login");
+  }
+
   async function handleResolveFeedback(id: string) {
     const res = await fetch("/api/admin/feedback", {
       method: "PATCH",
@@ -215,7 +222,10 @@ export function AdminResourcesClient({
             <h1 className="admin-header__title">运营后台</h1>
             <p className="admin-header__sub">资源管理 · 统计看板 · 失效反馈</p>
           </div>
-          <Link href="/" className="admin-header__back">← 回到前台</Link>
+          <div className="admin-header__actions">
+            <Link href="/" className="admin-header__back">← 回到前台</Link>
+            <button type="button" className="adm-btn adm-btn--sm" onClick={handleLogout}>退出登录</button>
+          </div>
         </div>
 
         {/* Tab nav */}
