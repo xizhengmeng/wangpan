@@ -68,7 +68,9 @@ export default function Home({
   };
 
   const freshResources = latestResources.slice(0, 12);
+  const rankedResources = hotResources.slice(0, freshResources.length);
   const featuredTags = tags.slice(0, 10);
+  const featuredSearches = hotSearches.slice(0, 10);
 
   return (
     <>
@@ -93,38 +95,65 @@ export default function Home({
             <SearchBox />
           </div>
 
-          <div className="home-v4-search__bottom">
-            <div className="home-v4-search__group">
-              <span className="home-v4-search__label">热门搜索</span>
-              <div className="home-v4-search__keywords">
-                {hotSearches.map((keyword) => (
-                  <Link
-                    className="home-v4-search__keyword"
-                    href={`/search?q=${encodeURIComponent(keyword)}`}
-                    key={keyword}
-                  >
-                    {keyword}
-                  </Link>
-                ))}
+          <section className="home-v4-discovery">
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <span className="home-v4-section__eyebrow">热门频道</span>
+                  <h2>优先浏览这些频道</h2>
+                </div>
               </div>
-            </div>
-
-            <div className="home-v4-search__group">
-              <span className="home-v4-search__label">热门频道</span>
-              <div className="home-v4-search__browse">
-                {featuredChannels.slice(0, 4).map((channel) => (
+              <div className="home-v4-search__browse home-v4-discovery__browse">
+                {featuredChannels.slice(0, 6).map((channel) => (
                   <Link
-                    className="home-v4-search__browse-item"
+                    className="home-v4-search__browse-item home-v4-discovery__channel"
                     href={`/channel/${channel.slug}`}
                     key={channel.id}
                   >
                     <strong>{channel.name}</strong>
-                    <span>进入热门频道</span>
                   </Link>
                 ))}
               </div>
-            </div>
-          </div>
+            </section>
+
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <span className="home-v4-section__eyebrow">资料分类</span>
+                  <h2>夸克资料热门标签</h2>
+                </div>
+              </div>
+              <div className="home-v4-tags">
+                {featuredTags.map((tag) => (
+                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
+                    <span>{tag.name}</span>
+                    <em>{tag.count}</em>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <span className="home-v4-section__eyebrow">热门搜索</span>
+                  <h2>大家都在搜什么</h2>
+                </div>
+              </div>
+              <div className="home-v4-tags">
+                {featuredSearches.map((keyword) => (
+                  <Link
+                    className="home-v4-tag"
+                    href={`/search?q=${encodeURIComponent(keyword)}`}
+                    key={keyword}
+                  >
+                    <span>{keyword}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </section>
+
         </section>
 
         <div className="home-v4-layout">
@@ -153,38 +182,6 @@ export default function Home({
           </main>
 
           <aside className="home-v4-side">
-            <section className="home-v4-panel home-v4-card">
-              <div className="home-v4-card__head">
-                <span className="home-v4-card__mark">夸</span>
-                <div>
-                  <h2>关于夸克网盘资料站</h2>
-                  <p>{structure.site_profile.positioning || "专注整理与分享夸克网盘资料"}</p>
-                </div>
-              </div>
-              <div className="home-v4-overview">
-                <div className="home-v4-overview__item">
-                  <strong>{stats.resourceCount}</strong>
-                  <span>夸克网盘资料</span>
-                </div>
-                <div className="home-v4-overview__item">
-                  <strong>{featuredChannels.length}</strong>
-                  <span>热门频道</span>
-                </div>
-                <div className="home-v4-overview__item">
-                  <strong>{stats.categoryCount}</strong>
-                  <span>资料分类</span>
-                </div>
-                <div className="home-v4-overview__item">
-                  <strong>{hotSearches.length}</strong>
-                  <span>热门搜索词</span>
-                </div>
-              </div>
-              <p className="home-v4-card__desc">
-                本站专注整理夸克网盘资料，所有夸克网盘资料均可直达下载，
-                无需注册即可免费获取夸克网盘资料。
-              </p>
-            </section>
-
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
@@ -193,7 +190,7 @@ export default function Home({
                 </div>
               </div>
               <div className="home-v4-rank">
-                {hotResources.slice(0, 5).map((resource, index) => (
+                {rankedResources.map((resource, index) => (
                   <Link className="home-v4-rank__item" href={`/resource/${resource.slug}`} key={resource.id}>
                     <span className="home-v4-rank__index">{rankLabel(index)}</span>
                     <span className="home-v4-rank__title">{resource.title}</span>
@@ -202,24 +199,9 @@ export default function Home({
               </div>
             </section>
 
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <span className="home-v4-section__eyebrow">资料分类</span>
-                  <h2>夸克资料热门标签</h2>
-                </div>
-              </div>
-              <div className="home-v4-tags">
-                {featuredTags.map((tag) => (
-                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
-                    <span>{tag.name}</span>
-                    <em>{tag.count}</em>
-                  </Link>
-                ))}
-              </div>
-            </section>
           </aside>
         </div>
+
       </div>
     </>
   );
@@ -248,7 +230,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   return {
     props: {
       latestResources: publishedResources.slice(0, 16),
-      hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 6),
+      hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 12),
       tags: tagMap.slice(0, 18),
       featuredChannels: featuredChannels.slice(0, 6),
       hotSearches,

@@ -211,8 +211,17 @@ export function Layout({ children }: PropsWithChildren) {
               );
             })}
 
-            <Link href="/search?q=" className="nav-link nav-link--search">
-              搜索
+            <Link href="/search?q=" className="nav-link nav-link--search" aria-label="搜索" title="搜索">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M13.5 13.5L18 18M15 8.75a6.25 6.25 0 1 1-12.5 0a6.25 6.25 0 0 1 12.5 0Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.8"
+                />
+              </svg>
             </Link>
           </nav>
 
