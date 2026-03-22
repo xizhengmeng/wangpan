@@ -55,6 +55,8 @@ type SiteProfileRow = RowDataPacket & {
   positioning: string;
   featured_message: string | null;
   hot_searches: string | null;
+  featured_channels: string | null;
+  hot_tags: string | null;
 };
 
 type ChannelRow = RowDataPacket & {
@@ -150,6 +152,15 @@ function parseHotSearches(value: string | null | undefined) {
       .filter(Boolean);
   }
 
+  return [];
+}
+
+function parseJsonArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean);
+  } catch { /* ignore */ }
   return [];
 }
 
@@ -729,7 +740,7 @@ export async function runSearch(query: string, page = 1): Promise<SearchResponse
 export async function getContentStructure(): Promise<ContentStructure> {
   const [siteProfileRows, channelRows, categoryRows, topicRows] = await Promise.all([
     queryRows<SiteProfileRow>(
-      `SELECT name, tagline, short_link, positioning, featured_message, hot_searches
+      `SELECT name, tagline, short_link, positioning, featured_message, hot_searches, featured_channels, hot_tags
        FROM site_profile WHERE id = 1 LIMIT 1`
     ),
     queryRows<ChannelRow>(
@@ -759,6 +770,8 @@ export async function getContentStructure(): Promise<ContentStructure> {
       positioning: siteProfile?.positioning || "通过数据库驱动频道、栏目、专题和资源。",
       ...(siteProfile?.featured_message ? { featured_message: siteProfile.featured_message } : {}),
       ...(siteProfile?.hot_searches ? { hot_searches: parseHotSearches(siteProfile.hot_searches) } : {}),
+      ...(siteProfile?.featured_channels ? { featured_channels: parseJsonArray(siteProfile.featured_channels) } : {}),
+      ...(siteProfile?.hot_tags ? { hot_tags: parseJsonArray(siteProfile.hot_tags) } : {}),
     },
     channels: channelRows.map<Channel>((row) => ({
       id: row.id,
@@ -801,10 +814,13 @@ export async function saveSiteProfile(input: {
   positioning: string;
   featured_message?: string;
   hot_searches?: string[];
+  featured_channels?: string[];
+  hot_tags?: string[];
 }) {
   await execute(
     `UPDATE site_profile
-     SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?, hot_searches = ?
+     SET name = ?, tagline = ?, short_link = ?, positioning = ?, featured_message = ?,
+         hot_searches = ?, featured_channels = ?, hot_tags = ?
      WHERE id = 1`,
     [
       input.name,
@@ -813,6 +829,8 @@ export async function saveSiteProfile(input: {
       input.positioning,
       input.featured_message || null,
       input.hot_searches && input.hot_searches.length > 0 ? JSON.stringify(input.hot_searches) : null,
+      input.featured_channels && input.featured_channels.length > 0 ? JSON.stringify(input.featured_channels) : null,
+      input.hot_tags && input.hot_tags.length > 0 ? JSON.stringify(input.hot_tags) : null,
     ]
   );
 

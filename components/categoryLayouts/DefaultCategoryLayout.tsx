@@ -38,10 +38,10 @@ export default function DefaultCategoryLayout({
             <h1 className="page-title">{categoryName}</h1>
             <p className="page-copy">{description}</p>
             {topics.length > 0 && (
-              <div className="chip-row" style={{ marginTop: 14 }}>
+              <div className="chip-row ch-topic-links">
                 {topics.map((topic) => (
                   <Link className="chip" href={`/topic/${topic.slug}`} key={topic.id}>
-                    {topic.name} · {topic.resources.length}
+                    {topic.name}
                   </Link>
                 ))}
               </div>
@@ -49,26 +49,21 @@ export default function DefaultCategoryLayout({
           </section>
 
           {topics.length > 0 && (
-            <section className="section" style={{ marginBottom: 12 }}>
+            <section className="section panel ch-topic-section">
               <div className="section-head">
                 <div>
                   <h2 className="section-title">专题浏览</h2>
-                  <p className="section-subtitle">点入专题查看明细分类的资料合集</p>
+                  <p className="section-subtitle">按专题继续缩小范围</p>
                 </div>
               </div>
-              <div className="ch-topic-grid" style={{ padding: 0 }}>
+              <div className="ch-topic-grid ch-topic-grid--simple">
                 {topics.map((topic) => (
                   <Link className="ch-topic-card" href={`/topic/${topic.slug}`} key={topic.id}>
                     <div className="ch-topic-card__top">
                       <h3 className="ch-topic-card__title">{topic.name}</h3>
-                      <span className="ch-topic-card__count">{topic.resources.length} 个资源</span>
+                      <span className="ch-topic-card__count">{topic.resources.length}</span>
                     </div>
-                    {topic.summary && (
-                      <p className="ch-topic-card__summary">{topic.summary}</p>
-                    )}
-                    {topic.resources[0] && (
-                      <div className="ch-topic-card__preview">{topic.resources[0].title}</div>
-                    )}
+                    {topic.summary ? <p className="ch-topic-card__summary">{topic.summary}</p> : null}
                   </Link>
                 ))}
               </div>

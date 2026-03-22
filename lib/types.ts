@@ -125,6 +125,10 @@ export interface ContentStructure {
     positioning: string;
     featured_message?: string;
     hot_searches?: string[];
+    /** 首页「优先浏览」区：手动指定的频道 slug 列表（有序）。空时自动取 featured=1 的频道 */
+    featured_channels?: string[];
+    /** 首页「热门标签」区：手动指定的标签名列表。空时自动取统计热度前 N */
+    hot_tags?: string[];
   };
   channels: Channel[];
   categories: CategoryNode[];

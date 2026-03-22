@@ -193,6 +193,8 @@ export function AdminResourcesClient({
     positioning: siteProfile.positioning,
     featured_message: siteProfile.featured_message || "",
     hot_searches: (siteProfile.hot_searches || []).join("\n"),
+    featured_channels: (siteProfile.featured_channels || []).join("\n"),
+    hot_tags: (siteProfile.hot_tags || []).join("\n"),
   });
   const [channelForm, setChannelForm] = useState(emptyChannelForm);
 
@@ -225,6 +227,8 @@ export function AdminResourcesClient({
       positioning: data.site_profile.positioning,
       featured_message: data.site_profile.featured_message || "",
       hot_searches: (data.site_profile.hot_searches || []).join("\n"),
+      featured_channels: (data.site_profile.featured_channels || []).join("\n"),
+      hot_tags: (data.site_profile.hot_tags || []).join("\n"),
     });
     setChannels(data.channels);
     setCategories(data.categories);
@@ -1108,12 +1112,13 @@ export function AdminResourcesClient({
                       <form
                         onSubmit={async (e) => {
                           e.preventDefault();
+                          const splitLines = (v: string) =>
+                            v.split(/\r?\n|,|，/).map((s) => s.trim()).filter(Boolean);
                           await handleSaveStructure("site_profile", {
                             ...siteProfileForm,
-                            hot_searches: siteProfileForm.hot_searches
-                              .split(/\r?\n|,|，/)
-                              .map((item) => item.trim())
-                              .filter(Boolean),
+                            hot_searches: splitLines(siteProfileForm.hot_searches),
+                            featured_channels: splitLines(siteProfileForm.featured_channels),
+                            hot_tags: splitLines(siteProfileForm.hot_tags),
                           });
                           setStructurePanel(null);
                         }}
@@ -1135,18 +1140,34 @@ export function AdminResourcesClient({
                           <input value={siteProfileForm.featured_message} onChange={(e) => setSiteProfileForm((current) => ({ ...current, featured_message: e.target.value }))} />
                         </div>
                         <div className="adm-field">
-                          <label>热门搜索</label>
+                          <label>首页「优先浏览」频道</label>
                           <textarea
-                            rows={6}
-                            value={siteProfileForm.hot_searches}
-                            onChange={(e) => setSiteProfileForm((current) => ({ ...current, hot_searches: e.target.value }))}
-                            placeholder={"考研\nPPT 模板\nPython"}
+                            rows={5}
+                            value={siteProfileForm.featured_channels}
+                            onChange={(e) => setSiteProfileForm((current) => ({ ...current, featured_channels: e.target.value }))}
+                            placeholder="media-entertainment"
                           />
-                          <small className="adm-field__hint">每行一个词，也支持逗号分隔。首页热门搜索会优先使用这里的配置。</small>
+                          <small className="adm-field__hint">每行填写一个频道 Slug（按顺序显示）。留空则自动展示所有“热门”频道。</small>
                         </div>
                         <div className="adm-field">
-                          <label>热门频道说明</label>
-                          <small className="adm-field__hint">首页热门频道直接读取频道上的“热门频道（首页展示）”开关，这里无需重复配置。</small>
+                          <label>首页热门标签</label>
+                          <textarea
+                            rows={5}
+                            value={siteProfileForm.hot_tags}
+                            onChange={(e) => setSiteProfileForm((current) => ({ ...current, hot_tags: e.target.value }))}
+                            placeholder="考研"
+                          />
+                          <small className="adm-field__hint">每行一个标签名。留空则自动按出现频率取 Top 标签。</small>
+                        </div>
+                        <div className="adm-field">
+                          <label>热门搜索</label>
+                          <textarea
+                            rows={5}
+                            value={siteProfileForm.hot_searches}
+                            onChange={(e) => setSiteProfileForm((current) => ({ ...current, hot_searches: e.target.value }))}
+                            placeholder="考研"
+                          />
+                          <small className="adm-field__hint">每行一个词，也支持逗号分隔。留空则自动取搜索热词。</small>
                         </div>
                         <div className="admin-form-actions">
                           <button className="adm-btn adm-btn--primary" type="submit">保存</button>

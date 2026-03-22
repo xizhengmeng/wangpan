@@ -4,6 +4,7 @@ import { GetServerSideProps } from "next";
 import { SearchBox } from "@/components/SearchBox";
 import { Seo } from "@/components/Seo";
 import { absoluteUrl, siteConfig } from "@/lib/site";
+import { slugify } from "@/lib/format";
 import {
   getAnalyticsSummary,
   getContentStructure,
@@ -99,44 +100,6 @@ export default function Home({
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">热门频道</span>
-                  <h2>优先浏览这些频道</h2>
-                </div>
-              </div>
-              <div className="home-v4-search__browse home-v4-discovery__browse">
-                {featuredChannels.slice(0, 6).map((channel) => (
-                  <Link
-                    className="home-v4-search__browse-item home-v4-discovery__channel"
-                    href={`/channel/${channel.slug}`}
-                    key={channel.id}
-                  >
-                    <strong>{channel.name}</strong>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <span className="home-v4-section__eyebrow">资料分类</span>
-                  <h2>夸克资料热门标签</h2>
-                </div>
-              </div>
-              <div className="home-v4-tags">
-                {featuredTags.map((tag) => (
-                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
-                    <span>{tag.name}</span>
-                    <em>{tag.count}</em>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <span className="home-v4-section__eyebrow">热门搜索</span>
                   <h2>大家都在搜什么</h2>
                 </div>
               </div>
@@ -148,6 +111,40 @@ export default function Home({
                     key={keyword}
                   >
                     <span>{keyword}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <h2>夸克资料热门标签</h2>
+                </div>
+              </div>
+              <div className="home-v4-tags">
+                {featuredTags.map((tag) => (
+                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
+                    <span>{tag.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="home-v4-panel">
+              <div className="home-v4-section__head">
+                <div>
+                  <h2>优先浏览这些频道</h2>
+                </div>
+              </div>
+              <div className="home-v4-search__browse home-v4-discovery__browse">
+                {featuredChannels.slice(0, 6).map((channel) => (
+                  <Link
+                    className="home-v4-search__browse-item home-v4-discovery__channel"
+                    href={`/channel/${channel.slug}`}
+                    key={channel.id}
+                  >
+                    <strong>{channel.name}</strong>
                   </Link>
                 ))}
               </div>
@@ -221,6 +218,32 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       .slice(0, 6) || [];
 
   const tagMap = await getTagMap(publishedResources);
+
+  // 如果后台配置了 featured_channels，按指定 slug 顺序筛选频道；否则取 featured=1 的频道
+  const allChannels = structure.channels.filter((c) => c.status === "active");
+  const resolvedFeaturedChannels: Channel[] = (() => {
+    const slugList = structure.site_profile.featured_channels;
+    if (slugList && slugList.length > 0) {
+      return slugList
+        .map((slug) => allChannels.find((c) => c.slug === slug))
+        .filter(Boolean) as Channel[];
+    }
+    return featuredChannels;
+  })();
+
+  // 如果后台配置了 hot_tags，直接使用；否则取自动计算的 top tags
+  const resolvedTags: Array<{ name: string; slug: string; count: number }> = (() => {
+    const tagNames = structure.site_profile.hot_tags;
+    if (tagNames && tagNames.length > 0) {
+      return tagNames.map((name) => {
+        const slug = slugify(name);
+        const existing = tagMap.find((t) => t.slug === slug || t.name === name);
+        return existing ?? { name, slug, count: 0 };
+      });
+    }
+    return tagMap;
+  })();
+
   const hotSearches =
     structure.site_profile.hot_searches && structure.site_profile.hot_searches.length > 0
       ? structure.site_profile.hot_searches.slice(0, 8)
@@ -230,8 +253,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     props: {
       latestResources: publishedResources.slice(0, 16),
       hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 12),
-      tags: tagMap.slice(0, 18),
-      featuredChannels: featuredChannels.slice(0, 6),
+      tags: resolvedTags.slice(0, 18),
+      featuredChannels: resolvedFeaturedChannels.slice(0, 6),
       hotSearches,
       structure,
       stats: {

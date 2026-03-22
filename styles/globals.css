@@ -4481,7 +4481,7 @@ img {
 
 .home-v4-discovery .home-v4-section__head {
   padding: 14px 16px 10px;
-  border-bottom-color: rgba(234, 240, 246, 0.9);
+  border-bottom: 0;
 }
 
 .home-v4-discovery .home-v4-section__eyebrow {
@@ -4838,11 +4838,6 @@ img {
   background: #eef5ff;
   border-color: #cfe1ff;
   color: var(--brand);
-}
-
-.home-v4-tag em {
-  font-style: normal;
-  color: var(--text-muted);
 }
 
 .home-v4-discovery__channel {
@@ -5955,35 +5950,51 @@ img {
 .ch-topic-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  padding: 16px 24px 20px;
   gap: 12px;
+  padding: 16px 24px 20px;
+}
+
+.ch-topic-links {
+  margin-top: 14px;
+}
+
+.ch-topic-section {
+  margin-bottom: 12px;
+}
+
+.ch-topic-grid--simple {
+  grid-template-columns: 1fr;
+  padding: 0 20px 20px;
 }
 .ch-topic-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
-  background: #fff;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  background: transparent;
   text-decoration: none;
   color: inherit;
   transition: all 0.15s;
 }
+.ch-topic-card:first-child {
+  border-top: 0;
+}
 .ch-topic-card:hover {
-  border-color: var(--brand-mid);
-  box-shadow: 0 4px 16px rgba(22, 119, 255, 0.07);
-  transform: translateY(-1px);
+  background: #f8faff;
+  box-shadow: none;
+  transform: none;
 }
 .ch-topic-card__top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 .ch-topic-card__title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
@@ -5991,30 +6002,19 @@ img {
 }
 .ch-topic-card__count {
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   flex-shrink: 0;
-  margin-top: 2px;
 }
 .ch-topic-card__summary {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin: 0;
   line-height: 1.6;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.ch-topic-card__preview {
-  margin-top: auto;
-  font-size: 11px;
-  color: var(--brand);
-  border-top: 1px solid var(--border-light);
-  padding-top: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Direct resource list (fallback) */
