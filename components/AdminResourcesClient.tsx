@@ -185,6 +185,7 @@ export function AdminResourcesClient({
   const [structureLoaded, setStructureLoaded] = useState(true);
   const [collapsedChannels, setCollapsedChannels] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(() => initialChannels[0]?.id ?? null);
   const [siteProfileForm, setSiteProfileForm] = useState({
     name: siteProfile.name,
     tagline: siteProfile.tagline,
@@ -970,13 +971,12 @@ export function AdminResourcesClient({
                 </button>
                 <button type="button" className="adm-btn adm-btn--sm"
                   onClick={() => {
-                    const allCh = new Set(channels.map((c) => c.id));
-                    const allCat = new Set(categories.map((c) => c.id));
-                    const anyOpen = collapsedChannels.size < allCh.size || collapsedCategories.size < allCat.size;
-                    if (anyOpen) { setCollapsedChannels(allCh); setCollapsedCategories(allCat); }
-                    else { setCollapsedChannels(new Set()); setCollapsedCategories(new Set()); }
+                    const selCats = categories.filter((c) => c.channel_id === selectedChannelId);
+                    const allCat = new Set(selCats.map((c) => c.id));
+                    const anyOpen = collapsedCategories.size < allCat.size;
+                    setCollapsedCategories(anyOpen ? allCat : new Set());
                   }}>
-                  {collapsedChannels.size + collapsedCategories.size > 0 ? "全部展开" : "全部折叠"}
+                  {collapsedCategories.size > 0 ? "展开全部栏目" : "折叠全部栏目"}
                 </button>
                 <button type="button" className="adm-btn adm-btn--primary"
                   onClick={() => { setChannelForm(emptyChannelForm); setStructurePanel("channel"); }}>
@@ -988,24 +988,34 @@ export function AdminResourcesClient({
             <div className="stree-layout">
               {/* ── 左侧层级树 ── */}
               <div className="stree">
-                {channels.length === 0 && (
-                  <div className="stree-empty">
-                    <p>还没有频道，点击右上角「+ 新增频道」开始创建</p>
-                  </div>
-                )}
+                {/* ── 横向频道 tab 栏 ── */}
+                <div className="stree-ch-tabs">
+                  {channels.length === 0 && (
+                    <span className="stree-ch-empty">还没有频道，点击右上角「+ 新增频道」开始创建</span>
+                  )}
+                  {channels.map((ch) => (
+                    <button
+                      type="button"
+                      key={ch.id}
+                      className={`stree-ch-tab${selectedChannelId === ch.id ? " stree-ch-tab--active" : ""}`}
+                      onClick={() => setSelectedChannelId(ch.id)}
+                    >
+                      {ch.name}
+                      {ch.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐</span>}
+                      {ch.featured && <span className="stree-tag stree-tag--featured">热</span>}
+                    </button>
+                  ))}
+                </div>
 
-                {channels.map((ch) => {
+                {/* ── 选中频道内容 ── */}
+                {(() => {
+                  const ch = channels.find((c) => c.id === selectedChannelId);
+                  if (!ch) return null;
                   const chCats = categories.filter((c) => c.channel_id === ch.id);
-                  const chCollapsed = collapsedChannels.has(ch.id);
                   return (
-                    <div className="stree-channel" key={ch.id}>
-                      {/* 频道行 */}
-                      <div className="stree-row stree-row--channel">
-                        <button type="button" className="stree-toggle" onClick={() => toggleChannel(ch.id)}
-                          title={chCollapsed ? "展开" : "折叠"}>
-                          <span className={`stree-chevron${chCollapsed ? " stree-chevron--collapsed" : ""}`}>▾</span>
-                          <span className="stree-toggle__count">{chCats.length}</span>
-                        </button>
+                    <>
+                      {/* 频道操作栏 */}
+                      <div className="stree-ch-bar">
                         <span className="stree-row__icon">📡</span>
                         <div className="stree-row__body">
                           <span className="stree-row__name">{ch.name}</span>
@@ -1013,13 +1023,9 @@ export function AdminResourcesClient({
                           {ch.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
                           {ch.featured && <span className="stree-tag stree-tag--featured">热门</span>}
                         </div>
-                        <div className="stree-row__actions">
+                        <div className="stree-row__actions stree-row__actions--always">
                           <button type="button" className="stree-action stree-action--add"
-                            title="新增栏目"
-                            onClick={() => {
-                              setCategoryForm({ ...emptyCategoryForm, channel_id: ch.id });
-                              setStructurePanel("category");
-                            }}>+ 栏目</button>
+                            onClick={() => { setCategoryForm({ ...emptyCategoryForm, channel_id: ch.id }); setStructurePanel("category"); }}>+ 栏目</button>
                           <button type="button" className="stree-action"
                             onClick={() => { setChannelForm({ id: ch.id, name: ch.name, slug: ch.slug, description: ch.description, sort_order: ch.sort, featured: ch.featured ?? false, status: ch.status }); setStructurePanel("channel"); }}>编辑</button>
                           <button type="button" className="stree-action stree-action--del"
@@ -1027,11 +1033,11 @@ export function AdminResourcesClient({
                         </div>
                       </div>
 
-                      {/* 栏目行 */}
-                      {!chCollapsed && chCats.length === 0 && (
+                      {/* 栏目列表 */}
+                      {chCats.length === 0 && (
                         <div className="stree-hint">暂无栏目，点击「+ 栏目」添加</div>
                       )}
-                      {!chCollapsed && chCats.map((cat, catIdx) => {
+                      {chCats.map((cat, catIdx) => {
                         const catTopics = topics.filter((t) => t.category_id === cat.id);
                         const isLastCat = catIdx === chCats.length - 1;
                         const catCollapsed = collapsedCategories.has(cat.id);
@@ -1050,10 +1056,7 @@ export function AdminResourcesClient({
                               </div>
                               <div className="stree-row__actions">
                                 <button type="button" className="stree-action stree-action--add"
-                                  onClick={() => {
-                                    setTopicForm({ ...emptyTopicForm, category_id: cat.id });
-                                    setStructurePanel("topic");
-                                  }}>+ 专题</button>
+                                  onClick={() => { setTopicForm({ ...emptyTopicForm, category_id: cat.id }); setStructurePanel("topic"); }}>+ 专题</button>
                                 <button type="button" className="stree-action"
                                   onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
                                 <button type="button" className="stree-action stree-action--del"
@@ -1061,7 +1064,6 @@ export function AdminResourcesClient({
                               </div>
                             </div>
 
-                            {/* 专题行 */}
                             {!catCollapsed && catTopics.length === 0 && (
                               <div className="stree-hint stree-hint--topic">暂无专题</div>
                             )}
@@ -1088,9 +1090,9 @@ export function AdminResourcesClient({
                           </div>
                         );
                       })}
-                    </div>
+                    </>
                   );
-                })}
+                })()}
               </div>
 
               {/* ── 右侧表单面板 ── */}

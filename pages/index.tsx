@@ -161,7 +161,6 @@ export default function Home({
             <section className="home-v4-section home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">资料更新</span>
                   <h2>最新夸克网盘资料</h2>
                 </div>
                 <Link href="/search?q=">查看更多</Link>
