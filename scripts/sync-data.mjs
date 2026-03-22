@@ -126,17 +126,18 @@ try {
 
   for (const topic of structure.topics) {
     await connection.execute(
-      `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          category_id = VALUES(category_id),
          name = VALUES(name),
          slug = VALUES(slug),
          summary = VALUES(summary),
+         download_url = VALUES(download_url),
          sort_order = VALUES(sort_order),
          featured = VALUES(featured),
          status = VALUES(status)`,
-      [topic.id, topic.category_id, topic.name, topic.slug, topic.summary, topic.sort, topic.featured ? 1 : 0, topic.status]
+      [topic.id, topic.category_id, topic.name, topic.slug, topic.summary, topic.download_url || null, topic.sort, topic.featured ? 1 : 0, topic.status]
     );
   }
 
@@ -168,7 +169,7 @@ try {
         resource.channel_id || null,
         resource.category_id || null,
         resource.cover,
-        resource.quark_url,
+        resource.quark_url || null,
         resource.extract_code || null,
         resource.publish_status,
         toSqlDate(resource.published_at),

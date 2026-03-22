@@ -78,7 +78,7 @@ const emptyResForm = {
 
 const emptyChannelForm = { id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
 const emptyCategoryForm = { id: "", channel_id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
-const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden", field_schema: "" };
+const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", download_url: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden", field_schema: "" };
 
 function formatDelta(value: number) {
   if (value === 0) {
@@ -370,11 +370,13 @@ export function AdminResourcesClient({
       category: matchedCategory?.name || resource.category,
       tags: resource.tags.join(", "),
       cover: resource.cover,
-      quark_url: resource.quark_url,
+      quark_url: resource.quark_url || "",
       extract_code: resource.extract_code || "",
       publish_status: resource.publish_status,
       published_at: resource.published_at.slice(0, 16),
-      meta: resource.meta || {},
+      meta: Object.fromEntries(
+        Object.entries(resource.meta || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join("、") : value])
+      ),
     });
     setTab("form");
   }
@@ -386,6 +388,8 @@ export function AdminResourcesClient({
       const { topic_id, ...restForm } = form;
       const payload = {
         ...restForm,
+        quark_url: form.quark_url.trim() || undefined,
+        extract_code: form.extract_code.trim() || undefined,
         topic_ids: topic_id ? [topic_id] : [],
         tags: form.tags.split(/[|,，]/).map((t) => t.trim()).filter(Boolean),
         published_at: new Date(form.published_at).toISOString(),
@@ -844,8 +848,9 @@ export function AdminResourcesClient({
               <div className="admin-form-section">
                 <h2 className="admin-form-section__title">链接与封面</h2>
                 <div className="adm-field">
-                  <label htmlFor="quark_url">夸克链接 *</label>
-                  <input id="quark_url" name="quark_url" value={form.quark_url} onChange={handleInputChange} required placeholder="https://pan.quark.cn/..." />
+                  <label htmlFor="quark_url">夸克链接</label>
+                  <input id="quark_url" name="quark_url" value={form.quark_url} onChange={handleInputChange} placeholder="https://pan.quark.cn/..." />
+                  <small className="adm-field__hint">可留空。留空时前端会尝试使用所选专题上的下载链接。</small>
                 </div>
                 <div className="adm-field-row">
                   <div className="adm-field">
@@ -890,7 +895,7 @@ export function AdminResourcesClient({
             <div className="admin-panel admin-panel--wide">
               <div className="admin-panel__title">CSV 批量导入</div>
               <p className="admin-import__desc">
-                支持新增和覆盖更新（upsert）。必填列：<code>title, slug, summary, category, tags, quark_url, extract_code, publish_status, published_at</code>
+                支持新增和覆盖更新（upsert）。必填列：<code>title, slug, summary, category, tags, publish_status, published_at</code>。其中 <code>quark_url</code>、<code>extract_code</code> 可留空。
               </p>
               <div className="adm-field">
                 <label htmlFor="csv-file">上传 CSV 文件</label>
@@ -1084,7 +1089,7 @@ export function AdminResourcesClient({
                                   </div>
                                   <div className="stree-row__actions">
                                     <button type="button" className="stree-action"
-                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
+                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, download_url: topic.download_url || "", sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
                                     <button type="button" className="stree-action stree-action--del"
                                       onClick={() => handleDeleteStructure("topic", topic.id)}>删除</button>
                                   </div>
@@ -1289,6 +1294,10 @@ export function AdminResourcesClient({
                           <input required value={topicForm.slug} onChange={(e) => setTopicForm((c) => ({ ...c, slug: e.target.value }))} placeholder="kaoyan-math" /></div>
                         <div className="adm-field"><label>摘要介绍</label>
                           <textarea value={topicForm.summary} onChange={(e) => setTopicForm((c) => ({ ...c, summary: e.target.value }))} rows={2} /></div>
+                        <div className="adm-field"><label>专题下载链接</label>
+                          <input value={topicForm.download_url} onChange={(e) => setTopicForm((c) => ({ ...c, download_url: e.target.value }))} placeholder="https://pan.quark.cn/..." />
+                          <small className="adm-field__hint">当资源本身没有下载链接时，详情页会自动回退使用这个专题下载链接。</small>
+                        </div>
                         <div className="adm-field">
                           <label>扩展字段配置（JSON）</label>
                           <textarea

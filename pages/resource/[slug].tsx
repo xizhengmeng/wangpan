@@ -7,16 +7,17 @@ import { Seo } from "@/components/Seo";
 import { TrackView } from "@/components/TrackView";
 import { formatDate, slugify } from "@/lib/format";
 import { absoluteUrl } from "@/lib/site";
-import { getPublishedResources, getResourceBySlug } from "@/lib/store";
+import { getPublishedResources, getResolvedDownloadUrlForResource, getResourceBySlug } from "@/lib/store";
 import { Resource } from "@/lib/types";
 
 interface ResourcePageProps {
   resource: Resource | null;
   related: Resource[];
   offline: boolean;
+  downloadUrl: string | null;
 }
 
-export default function ResourcePage({ resource, related, offline }: ResourcePageProps) {
+export default function ResourcePage({ resource, related, offline, downloadUrl }: ResourcePageProps) {
   if (!resource) {
     return null;
   }
@@ -112,9 +113,13 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
             <aside className="sticky-card">
               <strong>{offline ? "资源状态" : "夸克下载"}</strong>
               <p className="muted">
-                {offline ? "该资源当前不可用，请联系站长补充。" : "点击按钮直接跳转到夸克网盘，即可下载。"}
+                {offline
+                  ? "该资源当前不可用，请联系站长补充。"
+                  : downloadUrl
+                    ? "点击按钮直接跳转到夸克网盘，即可下载。"
+                    : "当前还没有可用下载链接。若资源未单独配置链接，系统会自动回退使用专题下载链接。"}
               </p>
-              {!offline ? (
+              {!offline && downloadUrl ? (
                 <Link className="button-link" href={`/go/${resource.id}`}>
                   进入夸克下载
                 </Link>
@@ -131,7 +136,7 @@ export default function ResourcePage({ resource, related, offline }: ResourcePag
                 </div>
                 <div className="info-item">
                   <span>状态</span>
-                  <strong>{offline ? "已下线" : "可下载"}</strong>
+                  <strong>{offline ? "已下线" : downloadUrl ? "可下载" : "待补链接"}</strong>
                 </div>
               </div>
               {!offline && <FeedbackButton resourceId={resource.id} />}
@@ -178,7 +183,8 @@ export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async (
     props: {
       resource,
       related,
-      offline
+      offline,
+      downloadUrl: await getResolvedDownloadUrlForResource(resource),
     }
   };
 };

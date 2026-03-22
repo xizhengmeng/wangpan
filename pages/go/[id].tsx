@@ -1,6 +1,6 @@
 import { GetServerSideProps } from "next";
 
-import { getResourceById, recordEvent } from "@/lib/store";
+import { getResolvedDownloadUrlForResource, getResourceById, recordEvent } from "@/lib/store";
 
 export default function GoPage() {
   return null;
@@ -25,6 +25,16 @@ export const getServerSideProps: GetServerSideProps = async ({ params, req }) =>
     };
   }
 
+  const downloadUrl = await getResolvedDownloadUrlForResource(resource);
+  if (!downloadUrl) {
+    return {
+      redirect: {
+        destination: `/resource/${resource.slug}`,
+        permanent: false
+      }
+    };
+  }
+
   await recordEvent({
     name: "outbound_quark_click",
     resource_id: resource.id,
@@ -40,7 +50,7 @@ export const getServerSideProps: GetServerSideProps = async ({ params, req }) =>
 
   return {
     redirect: {
-      destination: resource.quark_url,
+      destination: downloadUrl,
       permanent: false
     }
   };

@@ -29,7 +29,7 @@ type ResourceRow = RowDataPacket & {
   channel_id: string | null;
   category_id: string | null;
   cover: string;
-  quark_url: string;
+  quark_url: string | null;
   extract_code: string | null;
   publish_status: PublishStatus;
   published_at: string;
@@ -87,6 +87,7 @@ type TopicRow = RowDataPacket & {
   name: string;
   slug: string;
   summary: string;
+  download_url: string | null;
   sort_order: number;
   featured: number;
   status: "active" | "hidden";
@@ -178,11 +179,14 @@ function mapResourceRow(
     topic_ids: topicIdsByResourceId.get(row.id) || [],
     tags: tagsByResourceId.get(row.id) || [],
     cover: row.cover,
-    quark_url: row.quark_url,
     publish_status: row.publish_status,
     published_at: toIsoString(row.published_at),
     updated_at: toIsoString(row.updated_at),
   };
+
+  if (row.quark_url) {
+    resource.quark_url = row.quark_url;
+  }
 
   if (row.channel_id) {
     resource.channel_id = row.channel_id;
@@ -436,7 +440,7 @@ export async function saveResource(
       input.channel_id || null,
       input.category_id || null,
       input.cover,
-      input.quark_url,
+      input.quark_url || null,
       input.extract_code || null,
       input.publish_status,
       toSqlDateTime(input.published_at),
@@ -469,7 +473,7 @@ export async function saveResource(
           input.channel_id || null,
           input.category_id || null,
           input.cover,
-          input.quark_url,
+          input.quark_url || null,
           input.extract_code || null,
           input.publish_status,
           toSqlDateTime(input.published_at),
@@ -535,8 +539,6 @@ export async function importResourcesFromCsv(
     "summary",
     "category",
     "tags",
-    "quark_url",
-    "extract_code",
     "publish_status",
     "published_at",
   ];
@@ -555,10 +557,10 @@ export async function importResourcesFromCsv(
     const record = Object.fromEntries(header.map((key, index) => [key, values[index] || ""]));
 
     try {
-      if (!record.title || !record.slug || !record.summary || !record.category || !record.quark_url) {
+      if (!record.title || !record.slug || !record.summary || !record.category) {
         throw new Error("必填字段不能为空");
       }
-      if (!isValidHttpUrl(record.quark_url)) {
+      if (record.quark_url && !isValidHttpUrl(record.quark_url)) {
         throw new Error("夸克链接格式不正确");
       }
 
@@ -583,7 +585,7 @@ export async function importResourcesFromCsv(
         topic_ids: existing?.topic_ids || [],
         tags: normalizedTags,
         cover: existing?.cover || "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80",
-        quark_url: record.quark_url,
+        ...(record.quark_url ? { quark_url: record.quark_url } : {}),
         extract_code: record.extract_code,
         publish_status: (record.publish_status || "draft") as PublishStatus,
         published_at: record.published_at || new Date().toISOString(),
@@ -754,7 +756,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
        ORDER BY channel_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
     queryRows<TopicRow>(
-      `SELECT id, category_id, name, slug, summary, sort_order, featured, status, field_schema
+      `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema
        FROM topics
        ORDER BY category_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
@@ -799,6 +801,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       name: row.name,
       slug: row.slug,
       summary: row.summary,
+      ...(row.download_url ? { download_url: row.download_url } : {}),
       sort: row.sort_order,
       featured: Boolean(row.featured),
       status: row.status,
@@ -850,7 +853,7 @@ export async function getFeaturedTopics() {
 
 export async function getTopicBySlug(slug: string) {
   const rows = await queryRows<TopicRow>(
-    `SELECT id, category_id, name, slug, summary, sort_order, featured, status
+    `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema
      FROM topics WHERE slug = ? AND status = 'active' LIMIT 1`,
     [slug]
   );
@@ -865,10 +868,30 @@ export async function getTopicBySlug(slug: string) {
     name: row.name,
     slug: row.slug,
     summary: row.summary,
+    ...(row.download_url ? { download_url: row.download_url } : {}),
     sort: row.sort_order,
     featured: Boolean(row.featured),
     status: row.status,
+    ...(row.field_schema ? { field_schema: typeof row.field_schema === "string" ? JSON.parse(row.field_schema) : row.field_schema } : {}),
   } as TopicNode;
+}
+
+export async function getResolvedDownloadUrlForResource(resource: Pick<Resource, "quark_url" | "topic_ids">) {
+  if (resource.quark_url) {
+    return resource.quark_url;
+  }
+
+  const firstTopicId = resource.topic_ids?.find(Boolean);
+  if (!firstTopicId) {
+    return null;
+  }
+
+  const rows = await queryRows<Pick<TopicRow, "download_url"> & RowDataPacket>(
+    `SELECT download_url FROM topics WHERE id = ? LIMIT 1`,
+    [firstTopicId]
+  );
+
+  return rows[0]?.download_url || null;
 }
 
 export async function getResourcesByChannelId(channelId: string) {
@@ -1043,6 +1066,7 @@ export async function saveTopic(input: {
   name: string;
   slug: string;
   summary: string;
+  download_url?: string;
   sort_order?: number;
   featured?: boolean;
   status?: "active" | "hidden";
@@ -1055,20 +1079,31 @@ export async function saveTopic(input: {
   const fieldSchemaJson = input.field_schema ? JSON.stringify(input.field_schema) : null;
 
   await execute(
-    `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status, field_schema)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        category_id = VALUES(category_id),
        name = VALUES(name),
        slug = VALUES(slug),
        summary = VALUES(summary),
+       download_url = VALUES(download_url),
        sort_order = VALUES(sort_order),
        featured = VALUES(featured),
        status = VALUES(status),
        field_schema = VALUES(field_schema)`,
-    [id, input.category_id, input.name, input.slug, input.summary || "", sort_order, featured, status, fieldSchemaJson]
+    [id, input.category_id, input.name, input.slug, input.summary || "", input.download_url || null, sort_order, featured, status, fieldSchemaJson]
   );
-  return { id, category_id: input.category_id, name: input.name, slug: input.slug, summary: input.summary, sort: sort_order, featured: Boolean(featured), status };
+  return {
+    id,
+    category_id: input.category_id,
+    name: input.name,
+    slug: input.slug,
+    summary: input.summary,
+    ...(input.download_url ? { download_url: input.download_url } : {}),
+    sort: sort_order,
+    featured: Boolean(featured),
+    status,
+  };
 }
 
 export async function deleteTopic(id: string) {

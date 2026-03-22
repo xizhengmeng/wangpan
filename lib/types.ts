@@ -18,12 +18,12 @@ export interface Resource {
   topic_ids?: string[];
   tags: string[];
   cover: string;
-  quark_url: string;
+  quark_url?: string;
   extract_code?: string;
   publish_status: PublishStatus;
   published_at: string;
   updated_at: string;
-  meta?: Record<string, string>;
+  meta?: Record<string, string | string[]>;
 }
 
 export type TrackEventName =
@@ -111,6 +111,7 @@ export interface TopicNode {
   name: string;
   slug: string;
   summary: string;
+  download_url?: string;
   sort: number;
   featured?: boolean;
   status: "active" | "hidden";

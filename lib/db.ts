@@ -54,6 +54,7 @@ const requiredColumns: Record<string, Record<string, string>> = {
     name: "VARCHAR(160) NOT NULL",
     slug: "VARCHAR(180) NOT NULL",
     summary: "TEXT NOT NULL",
+    download_url: "VARCHAR(1000) NULL",
     sort_order: "INT NOT NULL DEFAULT 0",
     featured: "TINYINT(1) NOT NULL DEFAULT 0",
     status: "ENUM('active','hidden') NOT NULL DEFAULT 'active'",
@@ -69,7 +70,7 @@ const requiredColumns: Record<string, Record<string, string>> = {
     channel_id: "VARCHAR(64) NULL",
     category_id: "VARCHAR(64) NULL",
     cover: "VARCHAR(500) NOT NULL",
-    quark_url: "VARCHAR(1000) NOT NULL",
+    quark_url: "VARCHAR(1000) NULL",
     extract_code: "VARCHAR(80) NULL",
     publish_status: "ENUM('draft','published','offline') NOT NULL DEFAULT 'draft'",
     published_at: "DATETIME NOT NULL",
@@ -241,6 +242,8 @@ async function ensureMissingColumns() {
       );
     }
   }
+
+  await getPool().query(`ALTER TABLE \`resources\` MODIFY COLUMN \`quark_url\` VARCHAR(1000) NULL`);
 }
 
 async function ensureDefaultSiteProfile() {
@@ -300,6 +303,7 @@ async function seedStructureIfEmpty() {
       name: string;
       slug: string;
       summary: string;
+      download_url?: string;
       sort: number;
       featured?: boolean;
       status: "active" | "hidden";
@@ -362,14 +366,15 @@ async function seedStructureIfEmpty() {
 
     for (const topic of structure.topics || []) {
       await connection.execute(
-        `INSERT INTO topics (id, category_id, name, slug, summary, sort_order, featured, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           topic.id,
           topic.category_id,
           topic.name,
           topic.slug,
           topic.summary,
+          topic.download_url || null,
           topic.sort,
           topic.featured ? 1 : 0,
           topic.status,
@@ -404,7 +409,7 @@ async function seedResourcesIfEmpty() {
       topic_ids?: string[];
       tags: string[];
       cover: string;
-      quark_url: string;
+      quark_url?: string;
       extract_code?: string;
       publish_status: "draft" | "published" | "offline";
       published_at: string;
@@ -435,7 +440,7 @@ async function seedResourcesIfEmpty() {
           resource.channel_id || null,
           resource.category_id || null,
           resource.cover,
-          resource.quark_url,
+          resource.quark_url || null,
           resource.extract_code || null,
           resource.publish_status,
           toSqlDateTime(resource.published_at),
