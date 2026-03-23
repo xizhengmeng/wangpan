@@ -423,11 +423,25 @@ function buildDisplayLocation(region, city) {
   return city ? `${region}${city}` : region;
 }
 
+function getFileFormats(files) {
+  return Array.from(
+    new Set(
+      files
+        .map((file) => path.extname(file).replace(/^\./, "").toUpperCase())
+        .filter(Boolean)
+    )
+  ).sort();
+}
+
 function createResourceRecord(group) {
   const hash = stableHash(group.key);
   const location = buildDisplayLocation(group.region, group.city);
   const variantSuffix = group.paperVariant ? `（${group.paperVariant}）` : "";
   const title = `${group.year}年${location}中考${group.subject}真题${variantSuffix}`;
+  const fileFormats = getFileFormats(group.files);
+  const hasAnswer = group.kinds.some((kind) => kind.includes("答案"));
+  const hasAnalysis = group.kinds.some((kind) => kind.includes("解析"));
+  const hasAudio = group.kinds.some((kind) => kind.includes("听力"));
   const tags = Array.from(new Set([
     "中考",
     "中考真题",
@@ -445,6 +459,11 @@ function createResourceRecord(group) {
     ...(group.city ? { city: group.city } : {}),
     ...(group.paperVariant ? { paper_variant: group.paperVariant } : {}),
     ...(group.kinds.length > 0 ? { content_kinds: group.kinds } : {}),
+    file_count: String(group.files.length),
+    ...(fileFormats.length > 0 ? { file_formats: fileFormats } : {}),
+    has_answer: hasAnswer ? "是" : "否",
+    has_analysis: hasAnalysis ? "是" : "否",
+    has_audio: hasAudio ? "是" : "否",
   };
 
   return {

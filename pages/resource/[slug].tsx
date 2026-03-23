@@ -17,6 +17,10 @@ interface ResourcePageProps {
   related: Resource[];
   offline: boolean;
   downloadUrl: string | null;
+  examTopic: {
+    slug: "gaokaozhenti" | "zhongkaozhenti";
+    name: string;
+  } | null;
 }
 
 /** 将 resource.meta 渲染成可读的 label，无法映射的 key 做 title-case */
@@ -25,9 +29,91 @@ const META_LABELS: Record<string, string> = {
   province: "省份", volume: "卷册", edition: "版本", publisher: "出版社",
   difficulty: "难度", type: "类型", semester: "学期", course: "课程",
   city: "城市", paper_variant: "卷型", paper_version: "卷别", content_kinds: "内容类型",
+  file_count: "文件数", file_formats: "文件格式", has_answer: "包含答案", has_analysis: "包含解析", has_audio: "包含音频",
 };
 function metaLabel(key: string) {
   return META_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatMetaValue(value: string | string[]) {
+  return Array.isArray(value) ? value.filter(Boolean).join("、") : value;
+}
+
+function getExamHeadline(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhenti") {
+  const year = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "year") : getGaokaoMetaString(resource, "year");
+  const subject = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "subject") : getGaokaoMetaString(resource, "subject");
+  const region = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "region") : getGaokaoMetaString(resource, "region");
+  const city = examSlug === "zhongkaozhenti" ? getZhongkaoCity(resource) : null;
+  const kinds = resource.meta?.content_kinds;
+  const kindLabel = Array.isArray(kinds) && kinds.length > 0 ? kinds.join("、") : null;
+  const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
+  const area = [region, city].filter(Boolean).join("");
+  const base = [year ? `${year}年` : null, area, examName, subject].filter(Boolean).join("");
+
+  return kindLabel
+    ? `${base}资料页，当前收录 ${kindLabel}，可用于${examName}复习、真题训练和考前查漏补缺。`
+    : `${base}资料页，适合用于${examName}复习、真题练习和同地区试卷对照。`;
+}
+
+function getExamScenarios(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhenti") {
+  const kinds = Array.isArray(resource.meta?.content_kinds) ? resource.meta?.content_kinds : [];
+  const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
+  const scenarios = new Set<string>([
+    `用于${examName}历年真题训练与阶段复习`,
+    "按年份和地区对照题型变化",
+    "结合同科目真题做专项刷题",
+  ]);
+
+  if (kinds.some((item) => item.includes("答案"))) {
+    scenarios.add("适合课后核对答案与自我订正");
+  }
+  if (kinds.some((item) => item.includes("解析"))) {
+    scenarios.add("适合讲评课或错题复盘时参考解析");
+  }
+  if (kinds.some((item) => item.includes("听力"))) {
+    scenarios.add("适合英语听力专项训练");
+  }
+
+  return Array.from(scenarios).slice(0, 4);
+}
+
+function getExamHubLinks(resource: Resource, examTopic: { slug: "gaokaozhenti" | "zhongkaozhenti"; name: string }) {
+  const year = examTopic.slug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "year") : getGaokaoMetaString(resource, "year");
+  const subject = examTopic.slug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "subject") : getGaokaoMetaString(resource, "subject");
+  const region = examTopic.slug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "region") : getGaokaoMetaString(resource, "region");
+  const examName = examTopic.slug === "zhongkaozhenti" ? "中考" : "高考";
+
+  return [
+    { href: `/topic/${examTopic.slug}`, label: `${examTopic.name}汇总` },
+    subject ? { href: `/topic/${examTopic.slug}/subject/${encodeURIComponent(subject)}`, label: `${subject}${examName}真题` } : null,
+    region ? { href: `/topic/${examTopic.slug}/region/${encodeURIComponent(region)}`, label: `${region}${examName}真题` } : null,
+    year && region ? { href: `/topic/${examTopic.slug}/${year}/${encodeURIComponent(region)}`, label: `${year}年${region}${examName}真题` } : null,
+  ].filter(Boolean) as Array<{ href: string; label: string }>;
+}
+
+function getExamFaqs(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhenti") {
+  const year = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "year") : getGaokaoMetaString(resource, "year");
+  const subject = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "subject") : getGaokaoMetaString(resource, "subject");
+  const region = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "region") : getGaokaoMetaString(resource, "region");
+  const city = examSlug === "zhongkaozhenti" ? getZhongkaoCity(resource) : null;
+  const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
+  const kinds = Array.isArray(resource.meta?.content_kinds) ? resource.meta.content_kinds : [];
+  const area = [region, city].filter(Boolean).join("");
+
+  return [
+    {
+      q: `这份资料对应哪一年的${examName}真题？`,
+      a: year ? `这份资料对应 ${year} 年${area}${subject ? `${subject}` : ""}${examName}真题。` : `这是一份${area}${subject ? `${subject}` : ""}${examName}真题资料。`,
+    },
+    {
+      q: "这份资料包含哪些内容？",
+      a: kinds.length > 0 ? `当前收录内容类型包括：${kinds.join("、")}。` : "当前页面已整理基础真题信息，下载内容以后续补链结果为准。",
+    },
+    {
+      q: `如何继续查看同地区或同科目的${examName}真题？`,
+      a: `可以通过页面下方的聚合入口继续浏览同地区、同科目或同年份的${examName}真题汇总。`,
+    },
+  ];
 }
 
 function rankDefaultRelated(resource: Resource, items: Resource[]) {
@@ -88,11 +174,17 @@ function rankExamRelated(resource: Resource, items: Resource[], examSlug: "gaoka
     .map((entry) => entry.item);
 }
 
-export default function ResourcePage({ resource, related, offline, downloadUrl }: ResourcePageProps) {
+export default function ResourcePage({ resource, related, offline, downloadUrl, examTopic }: ResourcePageProps) {
   if (!resource) return null;
 
   const description = resource.summary;
   const metaEntries = resource.meta ? Object.entries(resource.meta).filter(([, v]) => v) : [];
+  const metaDisplayEntries = metaEntries.map(([key, value]) => [key, formatMetaValue(value)] as const);
+  const isExamResource = Boolean(examTopic);
+  const examIntro = examTopic ? getExamHeadline(resource, examTopic.slug) : null;
+  const examScenarios = examTopic ? getExamScenarios(resource, examTopic.slug) : [];
+  const examHubLinks = examTopic ? getExamHubLinks(resource, examTopic) : [];
+  const examFaqs = examTopic ? getExamFaqs(resource, examTopic.slug) : [];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CreativeWork",
@@ -135,7 +227,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl }
             <h1 className="page-title">{resource.title}</h1>
             <div className="meta-row" style={{ marginTop: 8 }}>
               <span className="meta-pill">{resource.category}</span>
-              {metaEntries.slice(0, 4).map(([k, v]) => (
+              {metaDisplayEntries.slice(0, 4).map(([k, v]) => (
                 <span className="meta-pill" key={k}>{metaLabel(k)}：{v}</span>
               ))}
               <span className="meta-pill">更新 {formatDate(resource.updated_at)}</span>
@@ -156,33 +248,70 @@ export default function ResourcePage({ resource, related, offline, downloadUrl }
                   : resource.summary}
               </p>
 
-              {/* 结构化元数据 表格 */}
-              {metaEntries.length > 0 && (
+              {isExamResource && examIntro && (
                 <>
-                  <h2 className="resource-section-title">详细信息</h2>
-                  <div className="resource-info-grid">
-                    {metaEntries.map(([k, v]) => (
-                      <div className="resource-info-item" key={k}>
-                        <span className="resource-info-item__label">{metaLabel(k)}</span>
-                        <span className="resource-info-item__value">{v}</span>
-                      </div>
-                    ))}
-                    <div className="resource-info-item">
-                      <span className="resource-info-item__label">分类</span>
-                      <span className="resource-info-item__value">
-                        <Link href={`/search?q=${encodeURIComponent(resource.category)}`}>{resource.category}</Link>
-                      </span>
-                    </div>
-                    <div className="resource-info-item">
-                      <span className="resource-info-item__label">发布时间</span>
-                      <span className="resource-info-item__value">{formatDate(resource.published_at)}</span>
-                    </div>
-                    <div className="resource-info-item">
-                      <span className="resource-info-item__label">最近更新</span>
-                      <span className="resource-info-item__value">{formatDate(resource.updated_at)}</span>
-                    </div>
+                  <h2 className="resource-section-title">资料说明</h2>
+                  <div className="resource-copy-block">
+                    <p>{examIntro}</p>
+                    <p>
+                      页面已整理这份资料的年份、科目、地区、城市和内容类型等结构化信息，
+                      方便继续查看同地区、同科目和同年份的考试真题汇总。
+                    </p>
                   </div>
                 </>
+              )}
+
+              {/* 结构化元数据 表格 */}
+              {metaDisplayEntries.length > 0 && (
+                <>
+                  <h2 className="resource-section-title">详细信息</h2>
+                  <dl className="resource-info-list">
+                    {metaDisplayEntries.map(([k, v]) => (
+                      <div className="resource-info-row" key={k}>
+                        <dt className="resource-info-row__label">{metaLabel(k)}</dt>
+                        <dd className="resource-info-row__value">{v}</dd>
+                      </div>
+                    ))}
+                    <div className="resource-info-row">
+                      <dt className="resource-info-row__label">分类</dt>
+                      <dd className="resource-info-row__value">
+                        <Link href={`/search?q=${encodeURIComponent(resource.category)}`}>{resource.category}</Link>
+                      </dd>
+                    </div>
+                    <div className="resource-info-row">
+                      <dt className="resource-info-row__label">发布时间</dt>
+                      <dd className="resource-info-row__value">{formatDate(resource.published_at)}</dd>
+                    </div>
+                    <div className="resource-info-row">
+                      <dt className="resource-info-row__label">最近更新</dt>
+                      <dd className="resource-info-row__value">{formatDate(resource.updated_at)}</dd>
+                    </div>
+                  </dl>
+                </>
+              )}
+
+              {isExamResource && examScenarios.length > 0 && (
+                <>
+                  <h2 className="resource-section-title">适用场景</h2>
+                  <ul className="resource-bullet-list">
+                    {examScenarios.map((scenario) => (
+                      <li key={scenario}>{scenario}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {isExamResource && examHubLinks.length > 0 && (
+                <div className="resource-tags-wrap">
+                  <h2 className="resource-section-title">继续浏览</h2>
+                  <div className="tag-cloud">
+                    {examHubLinks.map((item) => (
+                      <Link className="tag" href={item.href} key={item.href}>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* 标签云 */}
@@ -195,6 +324,20 @@ export default function ResourcePage({ resource, related, offline, downloadUrl }
                     ))}
                   </div>
                 </div>
+              )}
+
+              {isExamResource && examFaqs.length > 0 && (
+                <>
+                  <h2 className="resource-section-title">常见问题</h2>
+                  <div className="resource-faq-list">
+                    {examFaqs.map((item) => (
+                      <div className="resource-faq-item" key={item.q}>
+                        <strong>{item.q}</strong>
+                        <p>{item.a}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </article>
 
@@ -236,7 +379,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl }
                   <span>状态</span>
                   <strong>{offline ? "已下线" : downloadUrl ? "✅ 可下载" : "⏳ 待补链接"}</strong>
                 </div>
-                {metaEntries.slice(0, 6).map(([k, v]) => (
+                {metaDisplayEntries.slice(0, 6).map(([k, v]) => (
                   <div className="info-item" key={k}>
                     <span>{metaLabel(k)}</span>
                     <strong>{v}</strong>
@@ -254,7 +397,9 @@ export default function ResourcePage({ resource, related, offline, downloadUrl }
               <div className="section-head">
                 <div>
                   <h2 className="section-title">相关资源</h2>
-                  <p className="section-subtitle">同分类或同标签的其他资料</p>
+                  <p className="section-subtitle">
+                    {examTopic ? "同地区、同科目或同年份的相关真题资料" : "同分类或同标签的其他资料"}
+                  </p>
                 </div>
                 <Link href={`/search?q=${encodeURIComponent(resource.category)}`} className="related-more">
                   更多 {resource.category} →
@@ -312,6 +457,7 @@ export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async (
       related,
       offline,
       downloadUrl: await getResolvedDownloadUrlForResource(resource),
+      examTopic: examTopic ? { slug: examTopic.slug as "gaokaozhenti" | "zhongkaozhenti", name: examTopic.name } : null,
     }
   };
 };

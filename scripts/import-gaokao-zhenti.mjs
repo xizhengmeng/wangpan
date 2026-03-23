@@ -464,10 +464,24 @@ function stableHash(text) {
   return createHash('sha1').update(text).digest('hex');
 }
 
+function getFileFormats(files) {
+  return Array.from(
+    new Set(
+      files
+        .map((file) => path.extname(file).replace(/^\./, '').toUpperCase())
+        .filter(Boolean)
+    )
+  ).sort();
+}
+
 function createResourceRecord(group) {
   const hash = stableHash(group.key);
   const title = group.title;
   const applicableRegions = sortRegions(group.applicableRegions || []);
+  const fileFormats = getFileFormats(group.files);
+  const hasAnswer = group.kinds.some((kind) => kind.includes('答案'));
+  const hasAnalysis = group.kinds.some((kind) => kind.includes('解析'));
+  const hasAudio = group.kinds.some((kind) => kind.includes('听力'));
   const tags = Array.from(new Set([
     '高考',
     SUBJECT_TAG_FALLBACK,
@@ -486,6 +500,12 @@ function createResourceRecord(group) {
     ...(applicableRegions.length > 0 ? { applicable_regions: applicableRegions } : {}),
     ...(group.session ? { session: group.session } : {}),
     ...(group.stream ? { stream: group.stream } : {}),
+    ...(group.kinds.length > 0 ? { content_kinds: group.kinds } : {}),
+    file_count: String(group.files.length),
+    ...(fileFormats.length > 0 ? { file_formats: fileFormats } : {}),
+    has_answer: hasAnswer ? '是' : '否',
+    has_analysis: hasAnalysis ? '是' : '否',
+    has_audio: hasAudio ? '是' : '否',
   };
 
   return {
