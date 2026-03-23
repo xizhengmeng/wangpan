@@ -3,15 +3,9 @@ import Link from "next/link";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
+import { getGaokaoApplicableRegions, sortGaokaoRegions } from "@/lib/gaokao";
 import { absoluteUrl } from "@/lib/site";
 import type { TopicLayoutProps } from "./types";
-
-const REGION_ORDER = [
-  "北京", "天津", "上海", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江", "江苏", "浙江", "安徽",
-  "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西",
-  "甘肃", "青海", "内蒙古", "广西", "西藏", "宁夏", "新疆",
-];
-const REGION_INDEX = new Map(REGION_ORDER.map((region, index) => [region, index]));
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -27,17 +21,6 @@ export default function GaokaoZhentiLayout({
   const [selYear, setYear] = useState<string | null>(null);
   const [selRegion, setRegion] = useState<string | null>(null);
 
-  function getRegions(meta?: Record<string, string | string[]>) {
-    const regions = meta?.applicable_regions;
-    if (Array.isArray(regions)) {
-      return regions.filter(Boolean);
-    }
-    if (typeof meta?.region === "string" && meta.region) {
-      return [meta.region];
-    }
-    return [];
-  }
-
   const { subjects, years, regions } = useMemo(() => {
     const s = new Set<string>();
     const y = new Set<string>();
@@ -45,21 +28,14 @@ export default function GaokaoZhentiLayout({
     for (const res of resources) {
       if (typeof res.meta?.subject === "string") s.add(res.meta.subject);
       if (typeof res.meta?.year === "string") y.add(res.meta.year);
-      for (const region of getRegions(res.meta)) {
+      for (const region of getGaokaoApplicableRegions(res)) {
         r.add(region);
       }
     }
     return {
       subjects: Array.from(s).sort(),
       years: Array.from(y).sort((a, b) => Number(b) - Number(a)),
-      regions: Array.from(r).sort((a, b) => {
-        const aIndex = REGION_INDEX.has(a) ? REGION_INDEX.get(a)! : Number.MAX_SAFE_INTEGER;
-        const bIndex = REGION_INDEX.has(b) ? REGION_INDEX.get(b)! : Number.MAX_SAFE_INTEGER;
-        if (aIndex !== bIndex) {
-          return aIndex - bIndex;
-        }
-        return a.localeCompare(b, "zh-CN");
-      }),
+      regions: sortGaokaoRegions(Array.from(r)),
     };
   }, [resources]);
 
@@ -67,7 +43,7 @@ export default function GaokaoZhentiLayout({
     return resources.filter((res) => {
       if (selSubject && res.meta?.subject !== selSubject) return false;
       if (selYear    && res.meta?.year    !== selYear)    return false;
-      if (selRegion && !getRegions(res.meta).includes(selRegion)) return false;
+      if (selRegion && !getGaokaoApplicableRegions(res).includes(selRegion)) return false;
       return true;
     });
   }, [resources, selRegion, selSubject, selYear]);

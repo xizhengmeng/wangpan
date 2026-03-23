@@ -85,8 +85,103 @@ const structure = readJsonFile(path.join(dataDir, "content-structure.json"), {
   topics: [],
 });
 const resources = readJsonFile(path.join(dataDir, "resources.json"), []);
+const gaokaoManifest = readJsonFile(path.join(dataDir, "gaokao-zhenti-manifest.json"), {
+  resources: [],
+});
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const publishedResources = resources.filter((resource) => resource.publish_status === "published");
+
+function getApplicableRegions(resource) {
+  const list = resource?.meta?.applicable_regions;
+  if (Array.isArray(list)) {
+    return list.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof resource?.meta?.region === "string" && resource.meta.region) {
+    return [resource.meta.region];
+  }
+  return [];
+}
+
+function buildGaokaoComboEntries(baseUrlValue, manifestResources) {
+  const combos = new Map();
+
+  for (const resource of manifestResources) {
+    const year = typeof resource?.meta?.year === "string" ? resource.meta.year : "";
+    const updatedAt = resource?.updated_at || resource?.published_at || undefined;
+    if (!/^(19|20)\d{2}$/.test(year)) {
+      continue;
+    }
+
+    for (const region of getApplicableRegions(resource)) {
+      const key = `${year}||${region}`;
+      const current = combos.get(key);
+      if (!current) {
+        combos.set(key, {
+          loc: absoluteUrl(baseUrlValue, `/topic/gaokaozhenti/${year}/${region}`),
+          lastmod: updatedAt,
+        });
+        continue;
+      }
+
+      if (updatedAt && (!current.lastmod || updatedAt > current.lastmod)) {
+        current.lastmod = updatedAt;
+      }
+    }
+  }
+
+  return Array.from(combos.values()).sort((a, b) => a.loc.localeCompare(b.loc, "zh-CN"));
+}
+
+function buildGaokaoSubjectEntries(baseUrlValue, manifestResources) {
+  const subjects = new Map();
+
+  for (const resource of manifestResources) {
+    const subject = typeof resource?.meta?.subject === "string" ? resource.meta.subject : "";
+    const updatedAt = resource?.updated_at || resource?.published_at || undefined;
+    if (!subject) {
+      continue;
+    }
+
+    const current = subjects.get(subject);
+    if (!current) {
+      subjects.set(subject, {
+        loc: absoluteUrl(baseUrlValue, `/topic/gaokaozhenti/subject/${subject}`),
+        lastmod: updatedAt,
+      });
+      continue;
+    }
+
+    if (updatedAt && (!current.lastmod || updatedAt > current.lastmod)) {
+      current.lastmod = updatedAt;
+    }
+  }
+
+  return Array.from(subjects.values()).sort((a, b) => a.loc.localeCompare(b.loc, "zh-CN"));
+}
+
+function buildGaokaoRegionEntries(baseUrlValue, manifestResources) {
+  const regions = new Map();
+
+  for (const resource of manifestResources) {
+    const updatedAt = resource?.updated_at || resource?.published_at || undefined;
+    for (const region of getApplicableRegions(resource)) {
+      const current = regions.get(region);
+      if (!current) {
+        regions.set(region, {
+          loc: absoluteUrl(baseUrlValue, `/topic/gaokaozhenti/region/${region}`),
+          lastmod: updatedAt,
+        });
+        continue;
+      }
+
+      if (updatedAt && (!current.lastmod || updatedAt > current.lastmod)) {
+        current.lastmod = updatedAt;
+      }
+    }
+  }
+
+  return Array.from(regions.values()).sort((a, b) => a.loc.localeCompare(b.loc, "zh-CN"));
+}
 
 const categoryIdsWithResources = new Set(
   publishedResources.map((resource) => resource.category_id).filter(Boolean)
@@ -117,6 +212,9 @@ const urlEntries = [
     loc: absoluteUrl(baseUrl, `/resource/${resource.slug}`),
     lastmod: resource.updated_at || resource.published_at || undefined,
   })),
+  ...buildGaokaoSubjectEntries(baseUrl, gaokaoManifest.resources || []),
+  ...buildGaokaoRegionEntries(baseUrl, gaokaoManifest.resources || []),
+  ...buildGaokaoComboEntries(baseUrl, gaokaoManifest.resources || []),
 ];
 
 ensureCleanDirectory(sitemapsDir);
