@@ -1,5 +1,6 @@
 import type { CategoryLayoutProps } from "./types";
 import DefaultCategoryLayout from "./DefaultCategoryLayout";
+import MiddleSchoolLayout from "./MiddleSchoolLayout";
 
 export type CategoryLayoutComponent = (props: CategoryLayoutProps) => JSX.Element;
 
@@ -12,7 +13,7 @@ export type CategoryLayoutComponent = (props: CategoryLayoutProps) => JSX.Elemen
  *   "high-school": HighSchoolLayout,
  */
 const registry: Partial<Record<string, CategoryLayoutComponent>> = {
-  // "high-school": HighSchoolLayout,
+  "middle-school": MiddleSchoolLayout,
 };
 
 export function getCategoryLayout(slug: string): CategoryLayoutComponent {

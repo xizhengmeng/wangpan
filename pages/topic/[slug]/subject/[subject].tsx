@@ -3,12 +3,12 @@ import { GetServerSideProps } from "next";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
-import { getGaokaoApplicableRegions, getGaokaoSubject, getGaokaoYear, sortGaokaoRegions } from "@/lib/gaokao";
+import { getExamTopicConfig } from "@/lib/examTopics";
 import { absoluteUrl } from "@/lib/site";
 import { getContentStructure, getResourcesByTopicId, getTopicBySlug } from "@/lib/store";
 import type { Resource } from "@/lib/types";
 
-interface GaokaoSubjectPageProps {
+interface ExamSubjectPageProps {
   topic: {
     id: string;
     name: string;
@@ -20,23 +20,25 @@ interface GaokaoSubjectPageProps {
   channelName: string;
   channelSlug: string;
   subject: string;
+  examLabel: string;
   resources: Resource[];
   years: string[];
   regions: string[];
 }
 
-export default function GaokaoSubjectPage({
+export default function ExamSubjectPage({
   topic,
   categoryName,
   categorySlug,
   channelName,
   channelSlug,
   subject,
+  examLabel,
   resources,
   years,
   regions,
-}: GaokaoSubjectPageProps) {
-  const title = `${subject}高考真题汇总`;
+}: ExamSubjectPageProps) {
+  const title = `${subject}${examLabel}汇总`;
   const description = `${title}页，收录 ${resources.length} 份资料，覆盖 ${years[years.length - 1]}-${years[0]} 年与 ${regions.slice(0, 6).join("、")} 等地区。`;
   const path = `/topic/${topic.slug}/subject/${subject}`;
   const jsonLd = {
@@ -78,10 +80,10 @@ export default function GaokaoSubjectPage({
           </nav>
 
           <section className="page-hero panel">
-            <span className="eyebrow">高考真题单科页</span>
+            <span className="eyebrow">{examLabel}单科页</span>
             <h1 className="page-title">{title}</h1>
             <p className="page-copy">
-              按学科汇总全部 {subject} 高考真题，适合直接浏览历年该科目的完整资料。
+              按学科汇总全部 {subject}{examLabel}，适合直接浏览历年该科目的完整资料。
             </p>
             <div className="chip-row" style={{ marginTop: 14 }}>
               <span className="chip">{resources.length} 条资源</span>
@@ -109,11 +111,12 @@ export default function GaokaoSubjectPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<GaokaoSubjectPageProps> = async ({ params }) => {
+export const getServerSideProps: GetServerSideProps<ExamSubjectPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const subject = decodeURIComponent(String(params?.subject || "")).trim();
+  const config = getExamTopicConfig(slug);
 
-  if (slug !== "gaokaozhenti" || !subject) {
+  if (!config || !subject) {
     return { notFound: true };
   }
 
@@ -128,10 +131,10 @@ export const getServerSideProps: GetServerSideProps<GaokaoSubjectPageProps> = as
   ]);
 
   const resources = topicResources
-    .filter((resource) => getGaokaoSubject(resource) === subject)
+    .filter((resource) => config.getSubject(resource) === subject)
     .sort((a, b) => {
-      const yearA = Number(getGaokaoYear(a) || 0);
-      const yearB = Number(getGaokaoYear(b) || 0);
+      const yearA = Number(config.getYear(a) || 0);
+      const yearB = Number(config.getYear(b) || 0);
       if (yearA !== yearB) {
         return yearB - yearA;
       }
@@ -142,8 +145,8 @@ export const getServerSideProps: GetServerSideProps<GaokaoSubjectPageProps> = as
     return { notFound: true };
   }
 
-  const years = Array.from(new Set(resources.map(getGaokaoYear).filter(Boolean) as string[])).sort((a, b) => Number(b) - Number(a));
-  const regions = sortGaokaoRegions(Array.from(new Set(resources.flatMap(getGaokaoApplicableRegions))));
+  const years = Array.from(new Set(resources.map(config.getYear).filter(Boolean) as string[])).sort((a, b) => Number(b) - Number(a));
+  const regions = config.sortRegions(Array.from(new Set(resources.flatMap(config.getApplicableRegions))));
   const category = structure.categories.find((item) => item.id === topic.category_id);
   const channel = category
     ? structure.channels.find((item) => item.id === category.channel_id)
@@ -162,6 +165,7 @@ export const getServerSideProps: GetServerSideProps<GaokaoSubjectPageProps> = as
       channelName: channel?.name || "未分频道",
       channelSlug: channel?.slug || "",
       subject,
+      examLabel: config.label,
       resources,
       years,
       regions,

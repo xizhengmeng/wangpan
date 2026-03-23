@@ -241,6 +241,14 @@
     <loc>http://localhost:3000/topic/game-hall</loc>
   </url>
   <url>
+    <loc>http://localhost:3000/topic/gaokaozhenti</loc>
+    <lastmod>2026-03-22T23:50:35.712Z</lastmod>
+  </url>
+  <url>
+    <loc>http://localhost:3000/topic/zhongkaozhenti</loc>
+    <lastmod>2026-03-23T14:46:11.861Z</lastmod>
+  </url>
+  <url>
     <loc>http://localhost:3000/tag/%E5%8A%9E%E5%85%AC%E6%8A%80%E8%83%BD</loc>
   </url>
   <url>
@@ -296,13 +304,5 @@
   <url>
     <loc>http://localhost:3000/resource/high-quality-ppt-templates-pack</loc>
     <lastmod>2026-03-15T06:40:00.000Z</lastmod>
-  </url>
-  <url>
-    <loc>http://localhost:3000/resource/excel-office-automation-resources</loc>
-    <lastmod>2026-03-19T04:20:00.000Z</lastmod>
-  </url>
-  <url>
-    <loc>http://localhost:3000/resource/python-beginner-to-project-pack</loc>
-    <lastmod>2026-03-19T11:00:00.000Z</lastmod>
   </url>
 </urlset>

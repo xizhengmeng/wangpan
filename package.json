@@ -11,7 +11,8 @@
     "generate:sitemaps": "node scripts/generate-sitemaps.mjs",
     "init:db": "node scripts/init-db.mjs",
     "sync:data": "node scripts/sync-data.mjs",
-    "import:gaokao-zhenti": "node scripts/import-gaokao-zhenti.mjs --execute"
+    "import:gaokao-zhenti": "node scripts/import-gaokao-zhenti.mjs --execute",
+    "import:zhongkao-zhenti": "node scripts/import-zhongkao-zhenti.mjs --execute"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

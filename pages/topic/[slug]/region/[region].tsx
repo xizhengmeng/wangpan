@@ -3,12 +3,12 @@ import { GetServerSideProps } from "next";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
-import { GAOKAO_REGION_SET, getGaokaoApplicableRegions, getGaokaoSubject, getGaokaoYear } from "@/lib/gaokao";
+import { getExamTopicConfig } from "@/lib/examTopics";
 import { absoluteUrl } from "@/lib/site";
 import { getContentStructure, getResourcesByTopicId, getTopicBySlug } from "@/lib/store";
 import type { Resource } from "@/lib/types";
 
-interface GaokaoRegionPageProps {
+interface ExamRegionPageProps {
   topic: {
     id: string;
     name: string;
@@ -20,23 +20,25 @@ interface GaokaoRegionPageProps {
   channelName: string;
   channelSlug: string;
   region: string;
+  examLabel: string;
   resources: Resource[];
   years: string[];
   subjects: string[];
 }
 
-export default function GaokaoRegionPage({
+export default function ExamRegionPage({
   topic,
   categoryName,
   categorySlug,
   channelName,
   channelSlug,
   region,
+  examLabel,
   resources,
   years,
   subjects,
-}: GaokaoRegionPageProps) {
-  const title = `${region}高考真题汇总`;
+}: ExamRegionPageProps) {
+  const title = `${region}${examLabel}汇总`;
   const description = `${title}页，收录 ${resources.length} 份资料，覆盖 ${years[years.length - 1]}-${years[0]} 年与 ${subjects.join("、")} 等科目。`;
   const path = `/topic/${topic.slug}/region/${region}`;
   const jsonLd = {
@@ -78,10 +80,10 @@ export default function GaokaoRegionPage({
           </nav>
 
           <section className="page-hero panel">
-            <span className="eyebrow">高考真题地区页</span>
+            <span className="eyebrow">{examLabel}地区页</span>
             <h1 className="page-title">{title}</h1>
             <p className="page-copy">
-              汇总 {region} 地区历年高考真题，适合直接浏览该地区多年份、多科目的完整资料。
+              汇总 {region} 地区历年{examLabel}，适合直接浏览该地区多年份、多科目的完整资料。
             </p>
             <div className="chip-row" style={{ marginTop: 14 }}>
               <span className="chip">{resources.length} 条资源</span>
@@ -109,11 +111,12 @@ export default function GaokaoRegionPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<GaokaoRegionPageProps> = async ({ params }) => {
+export const getServerSideProps: GetServerSideProps<ExamRegionPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const region = decodeURIComponent(String(params?.region || "")).trim();
+  const config = getExamTopicConfig(slug);
 
-  if (slug !== "gaokaozhenti" || !GAOKAO_REGION_SET.has(region)) {
+  if (!config || !config.regionSet.has(region)) {
     return { notFound: true };
   }
 
@@ -128,15 +131,15 @@ export const getServerSideProps: GetServerSideProps<GaokaoRegionPageProps> = asy
   ]);
 
   const resources = topicResources
-    .filter((resource) => getGaokaoApplicableRegions(resource).includes(region))
+    .filter((resource) => config.getApplicableRegions(resource).includes(region))
     .sort((a, b) => {
-      const yearA = Number(getGaokaoYear(a) || 0);
-      const yearB = Number(getGaokaoYear(b) || 0);
+      const yearA = Number(config.getYear(a) || 0);
+      const yearB = Number(config.getYear(b) || 0);
       if (yearA !== yearB) {
         return yearB - yearA;
       }
-      const subjectA = getGaokaoSubject(a) || "";
-      const subjectB = getGaokaoSubject(b) || "";
+      const subjectA = config.getSubject(a) || "";
+      const subjectB = config.getSubject(b) || "";
       return subjectA.localeCompare(subjectB, "zh-CN");
     });
 
@@ -144,8 +147,8 @@ export const getServerSideProps: GetServerSideProps<GaokaoRegionPageProps> = asy
     return { notFound: true };
   }
 
-  const years = Array.from(new Set(resources.map(getGaokaoYear).filter(Boolean) as string[])).sort((a, b) => Number(b) - Number(a));
-  const subjects = Array.from(new Set(resources.map(getGaokaoSubject).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "zh-CN"));
+  const years = Array.from(new Set(resources.map(config.getYear).filter(Boolean) as string[])).sort((a, b) => Number(b) - Number(a));
+  const subjects = Array.from(new Set(resources.map(config.getSubject).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, "zh-CN"));
   const category = structure.categories.find((item) => item.id === topic.category_id);
   const channel = category
     ? structure.channels.find((item) => item.id === category.channel_id)
@@ -164,6 +167,7 @@ export const getServerSideProps: GetServerSideProps<GaokaoRegionPageProps> = asy
       channelName: channel?.name || "未分频道",
       channelSlug: channel?.slug || "",
       region,
+      examLabel: config.label,
       resources,
       years,
       subjects,

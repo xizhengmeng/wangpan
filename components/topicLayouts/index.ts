@@ -1,5 +1,6 @@
 import DefaultTopicLayout from "./DefaultTopicLayout";
 import GaokaoZhentiLayout from "./GaokaoZhentiLayout";
+import ZhongkaoZhentiLayout from "./ZhongkaoZhentiLayout";
 import type { TopicLayoutProps } from "./types";
 
 export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
@@ -10,6 +11,7 @@ export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
  */
 const registry: Partial<Record<string, TopicLayoutComponent>> = {
   gaokaozhenti: GaokaoZhentiLayout,
+  zhongkaozhenti: ZhongkaoZhentiLayout,
 };
 
 export function getTopicLayout(slug: string): TopicLayoutComponent {
