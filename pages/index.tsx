@@ -3,7 +3,6 @@ import { GetServerSideProps } from "next";
 
 import { SearchBox } from "@/components/SearchBox";
 import { Seo } from "@/components/Seo";
-import { getExamTopicConfig } from "@/lib/examTopics";
 import { absoluteUrl, siteConfig } from "@/lib/site";
 import { slugify } from "@/lib/format";
 import {
@@ -13,7 +12,7 @@ import {
   getPublishedResources,
   getTagMap
 } from "@/lib/store";
-import { Channel, ContentStructure, Resource } from "@/lib/types";
+import { Channel, Resource } from "@/lib/types";
 
 interface HomeProps {
   latestResources: Resource[];
@@ -21,20 +20,6 @@ interface HomeProps {
   tags: Array<{ name: string; slug: string; count: number }>;
   featuredChannels: Channel[];
   hotSearches: string[];
-  structure: ContentStructure;
-  examHighlights: Record<
-    string,
-    {
-      subjects: Array<{ name: string; count: number }>;
-      regions: Array<{ name: string; count: number }>;
-    }
-  >;
-  stats: {
-    resourceCount: number;
-    queryCount: number;
-    eventCount: number;
-    categoryCount: number;
-  };
 }
 
 function formatDate(dateStr: string) {
@@ -60,10 +45,7 @@ export default function Home({
   hotResources,
   tags,
   featuredChannels,
-  hotSearches,
-  structure,
-  examHighlights,
-  stats
+  hotSearches
 }: HomeProps) {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -81,7 +63,6 @@ export default function Home({
   const rankedResources = hotResources.slice(0, freshResources.length);
   const featuredTags = tags.slice(0, 10);
   const featuredSearches = hotSearches.slice(0, 10);
-  const examTopics = structure.topics.filter((topic) => ["gaokaozhenti", "zhongkaozhenti"].includes(topic.slug));
 
   return (
     <>
@@ -160,46 +141,6 @@ export default function Home({
               </div>
             </section>
           </section>
-
-          {examTopics.length > 0 && (
-            <section className="home-v4-exams">
-              {examTopics.map((topic) => {
-                const highlight = examHighlights[topic.slug];
-
-                return (
-                  <Link className="home-v4-exams__card" href={`/topic/${topic.slug}`} key={topic.id}>
-                    <span className="home-v4-exams__eyebrow">考试真题专题</span>
-                    <strong>{topic.name}</strong>
-                    <p>{topic.summary}</p>
-                    {highlight && (highlight.subjects.length > 0 || highlight.regions.length > 0) ? (
-                      <div className="home-v4-exams__meta">
-                        {highlight.subjects.length > 0 && (
-                          <div className="home-v4-exams__meta-row">
-                            <span>热门科目</span>
-                            <div className="home-v4-exams__chips">
-                              {highlight.subjects.slice(0, 4).map((item) => (
-                                <em key={`${topic.slug}-subject-${item.name}`}>{item.name}</em>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {highlight.regions.length > 0 && (
-                          <div className="home-v4-exams__meta-row">
-                            <span>热门地区</span>
-                            <div className="home-v4-exams__chips">
-                              {highlight.regions.slice(0, 4).map((item) => (
-                                <em key={`${topic.slug}-region-${item.name}`}>{item.name}</em>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                  </Link>
-                );
-              })}
-            </section>
-          )}
 
         </section>
 
@@ -299,65 +240,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       ? structure.site_profile.hot_searches.slice(0, 8)
       : analytics.topQueries.map((item) => item.query).slice(0, 8);
 
-  const examHighlights = Object.fromEntries(
-    structure.topics
-      .filter((topic) => ["gaokaozhenti", "zhongkaozhenti"].includes(topic.slug))
-      .map((topic) => {
-        const config = getExamTopicConfig(topic.slug);
-        const topicResources = publishedResources.filter((resource) => resource.topic_ids?.includes(topic.id));
-
-        if (!config) {
-          return [topic.slug, { subjects: [], regions: [] }];
-        }
-
-        const subjectCount = new Map<string, number>();
-        const regionCount = new Map<string, number>();
-
-        for (const resource of topicResources) {
-          const subject = config.getSubject(resource);
-          if (subject) {
-            subjectCount.set(subject, (subjectCount.get(subject) || 0) + 1);
-          }
-          for (const region of config.getApplicableRegions(resource)) {
-            regionCount.set(region, (regionCount.get(region) || 0) + 1);
-          }
-        }
-
-        const sortCounts = (map: Map<string, number>) =>
-          Array.from(map.entries())
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => {
-              if (b.count !== a.count) {
-                return b.count - a.count;
-              }
-              return a.name.localeCompare(b.name, "zh-CN");
-            });
-
-        return [
-          topic.slug,
-          {
-            subjects: sortCounts(subjectCount),
-            regions: sortCounts(regionCount),
-          },
-        ];
-      })
-  );
-
   return {
     props: {
       latestResources: publishedResources.slice(0, 16),
       hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 12),
       tags: resolvedTags.slice(0, 18),
       featuredChannels: resolvedFeaturedChannels.slice(0, 6),
-      hotSearches,
-      structure,
-      examHighlights,
-      stats: {
-        resourceCount: publishedResources.length,
-        queryCount: analytics.topQueries.reduce((total, item) => total + item.count, 0),
-        eventCount: analytics.totalEvents,
-        categoryCount: structure.categories.filter((item) => item.status === "active").length
-      }
+      hotSearches
     }
   };
 };
