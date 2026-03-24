@@ -2,6 +2,7 @@ import { GetServerSideProps } from "next";
 import Link from "next/link";
 
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { ResourceDownloadEntry } from "@/components/ResourceDownloadEntry";
 import { Seo } from "@/components/Seo";
 import { TrackView } from "@/components/TrackView";
 import { getExamTopicConfig } from "@/lib/examTopics";
@@ -357,14 +358,15 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
                 {offline
                   ? "该资源当前不可用，请联系站长补充。"
                   : downloadUrl
-                    ? "点击下方按钮跳转到夸克网盘即可下载。"
-                    : "暂无下载链接，如有需要请通过反馈联系站长。"}
+                    ? "电脑端点击按钮会弹出二维码，使用手机夸克扫码即可下载；移动端点击会直接跳转。"
+                    : "点击下方按钮后，系统会尝试搜索当前资源的可用下载链接，最多等待 10 秒。"}
               </p>
 
-              {!offline && downloadUrl && (
-                <Link className="button-link resource-dl-btn" href={`/go/${resource.id}`}>
-                  进入夸克下载
-                </Link>
+              {!offline && (
+                <ResourceDownloadEntry
+                  initialDownloadUrl={downloadUrl}
+                  resourceId={resource.id}
+                />
               )}
 
               {resource.extract_code && (
@@ -377,7 +379,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
               <div className="info-list" style={{ marginTop: 14 }}>
                 <div className="info-item">
                   <span>状态</span>
-                  <strong>{offline ? "已下线" : downloadUrl ? "✅ 可下载" : "⏳ 待补链接"}</strong>
+                  <strong>{offline ? "已下线" : downloadUrl ? "✅ 可下载" : "🔄 搜索入口中"}</strong>
                 </div>
                 {metaDisplayEntries.slice(0, 6).map(([k, v]) => (
                   <div className="info-item" key={k}>
