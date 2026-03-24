@@ -86,62 +86,6 @@ export default function Home({
           <div className="home-v4-search__form">
             <SearchBox />
           </div>
-
-          <section className="home-v4-discovery">
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <h2>大家都在搜什么</h2>
-                </div>
-              </div>
-              <div className="home-v4-tags">
-                {featuredSearches.map((keyword) => (
-                  <Link
-                    className="home-v4-tag"
-                    href={`/search?q=${encodeURIComponent(keyword)}`}
-                    key={keyword}
-                  >
-                    <span>{keyword}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <h2>夸克资料热门标签</h2>
-                </div>
-              </div>
-              <div className="home-v4-tags">
-                {featuredTags.map((tag) => (
-                  <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
-                    <span>{tag.name}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="home-v4-panel">
-              <div className="home-v4-section__head">
-                <div>
-                  <h2>优先浏览这些频道</h2>
-                </div>
-              </div>
-              <div className="home-v4-search__browse home-v4-discovery__browse">
-                {featuredChannels.slice(0, 6).map((channel) => (
-                  <Link
-                    className="home-v4-search__browse-item home-v4-discovery__channel"
-                    href={`/channel/${channel.slug}`}
-                    key={channel.id}
-                  >
-                    <strong>{channel.name}</strong>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          </section>
-
         </section>
 
         <div className="home-v4-layout">
@@ -188,6 +132,61 @@ export default function Home({
 
           </aside>
         </div>
+
+        <section className="home-v4-discovery home-v4-discovery--standalone">
+          <section className="home-v4-panel">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>大家都在搜什么</h2>
+              </div>
+            </div>
+            <div className="home-v4-tags">
+              {featuredSearches.map((keyword) => (
+                <Link
+                  className="home-v4-tag"
+                  href={`/search?q=${encodeURIComponent(keyword)}`}
+                  key={keyword}
+                >
+                  <span>{keyword}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-v4-panel">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>夸克资料热门标签</h2>
+              </div>
+            </div>
+            <div className="home-v4-tags">
+              {featuredTags.map((tag) => (
+                <Link className="home-v4-tag" href={`/tag/${tag.slug}`} key={tag.slug}>
+                  <span>{tag.name}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-v4-panel">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>优先浏览这些频道</h2>
+              </div>
+            </div>
+            <div className="home-v4-search__browse home-v4-discovery__browse">
+              {featuredChannels.slice(0, 6).map((channel) => (
+                <Link
+                  className="home-v4-search__browse-item home-v4-discovery__channel"
+                  href={`/channel/${channel.slug}`}
+                  key={channel.id}
+                >
+                  <strong>{channel.name}</strong>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </section>
 
       </div>
     </>
