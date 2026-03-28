@@ -8,6 +8,7 @@ interface NavChildItem {
   label: string;
   href: string;
   meta?: string[];
+  topics?: { label: string; href: string }[];
 }
 
 interface NavItem {
@@ -15,7 +16,7 @@ interface NavItem {
   label: string;
   href: string;
   children?: NavChildItem[];
-  variant?: "links" | "cards";
+  variant?: "links" | "cards" | "mega";
 }
 
 export function Layout({ children }: PropsWithChildren) {
@@ -64,22 +65,34 @@ export function Layout({ children }: PropsWithChildren) {
       });
 
     const channelItems: NavItem[] = activeChannels.map((channel) => {
+      const isMega = channel.id === "channel_education_exam";
+
       const categories = structure.categories
         .filter((category) => category.channel_id === channel.id && category.status === "active")
         .sort((a, b) => a.sort - b.sort)
         .slice(0, 8)
-        .map((category) => ({
-          label: category.name,
-          href: `/category/${category.slug}`
-        }));
+        .map((category) => {
+          const base: NavChildItem = {
+            label: category.name,
+            href: `/category/${category.slug}`,
+          };
+          if (isMega) {
+            const topics = structure.topics
+              .filter((t) => t.category_id === category.id && t.status === "active")
+              .sort((a, b) => a.sort - b.sort)
+              .map((t) => ({ label: t.name, href: `/topic/${t.slug}` }));
+            return { ...base, topics };
+          }
+          return base;
+        });
 
       return {
         key: channel.id,
         label: channel.name,
         href: `/channel/${channel.slug}`,
         children: categories,
-        variant: "links",
-      };
+        variant: isMega ? "mega" : "links",
+      } as NavItem;
     });
 
     return [{ key: "home", label: "首页", href: "/" }, ...channelItems];
@@ -123,11 +136,14 @@ export function Layout({ children }: PropsWithChildren) {
       return router.pathname === "/";
     }
 
-    if (router.asPath === item.href) {
-      return true;
-    }
+    if (router.asPath === item.href) return true;
 
-    return item.children?.some((child) => router.asPath === child.href) || false;
+    if (item.children?.some((child) => router.asPath === child.href)) return true;
+
+    // 3rd-level topic pages (mega menu)
+    if (item.children?.some((child) => child.topics?.some((t) => router.asPath === t.href))) return true;
+
+    return false;
   }
 
   return (
@@ -188,24 +204,54 @@ export function Layout({ children }: PropsWithChildren) {
                   </div>
 
                   {hasChildren ? (
-                    <div className={`nav-submenu${item.variant === "cards" ? " nav-submenu--cards" : ""}`}>
-                      {item.children?.map((child) => (
-                        <Link
-                          className={`nav-submenu__link${item.variant === "cards" ? " nav-submenu__link--card" : ""}`}
-                          href={child.href}
-                          key={child.href}
-                        >
-                          <strong>{child.label}</strong>
-                          {item.variant === "cards" && child.meta?.length ? (
-                            <div className="nav-submenu__meta">
-                              {child.meta.map((metaItem) => (
-                                <span key={metaItem}>{metaItem}</span>
-                              ))}
-                            </div>
-                          ) : null}
-                        </Link>
-                      ))}
-                    </div>
+                    item.variant === "mega" ? (
+                      <div className="nav-submenu nav-submenu--mega">
+                        {item.children?.map((child) => (
+                          <div
+                            key={child.href}
+                            className={`nav-mega-row${child.topics?.length ? " nav-mega-row--has-panel" : ""}`}
+                          >
+                            <Link href={child.href} className="nav-submenu__link nav-mega-row__link">
+                              <strong>{child.label}</strong>
+                              {child.topics?.length ? (
+                                <span className="nav-mega-arrow" aria-hidden="true">›</span>
+                              ) : null}
+                            </Link>
+                            {child.topics?.length ? (
+                              <div className="nav-mega-panel">
+                                <p className="nav-mega-panel__head">{child.label}</p>
+                                <div className="nav-mega-panel__topics">
+                                  {child.topics.map((t) => (
+                                    <Link key={t.href} href={t.href} className="nav-mega-topic">
+                                      {t.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`nav-submenu${item.variant === "cards" ? " nav-submenu--cards" : ""}`}>
+                        {item.children?.map((child) => (
+                          <Link
+                            className={`nav-submenu__link${item.variant === "cards" ? " nav-submenu__link--card" : ""}`}
+                            href={child.href}
+                            key={child.href}
+                          >
+                            <strong>{child.label}</strong>
+                            {item.variant === "cards" && child.meta?.length ? (
+                              <div className="nav-submenu__meta">
+                                {child.meta.map((metaItem) => (
+                                  <span key={metaItem}>{metaItem}</span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </Link>
+                        ))}
+                      </div>
+                    )
                   ) : null}
                 </div>
               );

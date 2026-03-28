@@ -209,7 +209,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {!offline && <TrackView name="resource_detail_view" payload={{ resource_id: resource.id }} />}
 
-      <div className="page-shell">
+      <div className="page-shell resource-page-shell">
         <div className="container">
           {/* Breadcrumb */}
           {!offline && resource.channel_id && (

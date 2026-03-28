@@ -27,6 +27,60 @@ function formatDate(dateStr: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+const homeGuideSteps = [
+  {
+    title: "搜索你要的夸克网盘资源",
+    description:
+      "在首页搜索框输入资源关键词，例如课程名称、资料名称、考试科目、软件版本或模板类型，优先查看标题和分类最匹配的结果。"
+  },
+  {
+    title: "进入资源详情页查看说明",
+    description:
+      "详情页会展示资源简介、分类、标签和更新时间，方便判断是不是你要找的夸克资料，避免无效点击和重复检索。"
+  },
+  {
+    title: "直达夸克网盘链接",
+    description:
+      "确认资源后可直接进入夸克网盘相关链接页面，快速完成查看、保存或后续转存操作，适合整理个人资源库。"
+  }
+];
+
+const homeResourceScopes = [
+  {
+    title: "学习资料与课程素材",
+    description:
+      "适合查找考试试卷、课程讲义、同步资料、真题整理、笔记素材和各类专题学习资源。"
+  },
+  {
+    title: "办公模板与效率工具",
+    description:
+      "适合搜索 PPT 模板、Excel 模板、简历模板、表格素材、工作汇报模板和常用效率资源。"
+  },
+  {
+    title: "软件工具与电子书",
+    description:
+      "适合浏览软件工具合集、实用应用资源、电子书整理页和按主题聚合的资源包。"
+  }
+];
+
+const homeFaqs = [
+  {
+    question: "这个网站主要收录哪些夸克网盘资源？",
+    answer:
+      "本站主要收录夸克网盘公开可访问的学习资料、课程素材、办公模板、软件工具、电子书和部分热门专题资源，方便按关键词快速搜索和浏览。"
+  },
+  {
+    question: "如何更快找到想要的资源？",
+    answer:
+      "建议优先使用资源名、课程名、考试名、软件版本号或模板类型进行搜索，也可以先从热门标签、频道和搜索建议进入，再缩小范围。"
+  },
+  {
+    question: "首页的最新资料和热门资料有什么区别？",
+    answer:
+      "最新资料更强调更新时间，适合追踪新入库的夸克网盘资源；热门资料则根据站内访问热度整理，适合快速查看最近更受关注的内容。"
+  }
+];
+
 export default function Home({
   latestResources,
   hotResources,
@@ -34,17 +88,53 @@ export default function Home({
   featuredChannels,
   hotSearches
 }: HomeProps) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: siteConfig.name,
-    itemListElement: latestResources.slice(0, 8).map((resource, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      url: absoluteUrl(`/resource/${resource.slug}`),
-      name: resource.title
-    }))
-  };
+  const seoTitle = "夸克网盘资源搜索站";
+  const seoDescription =
+    "夸克网盘资料搜索站，免费搜索夸克网盘资源，涵盖学习资料、课程素材、办公模板、软件工具与电子书合集，支持按分类、标签和频道快速查找。";
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: siteConfig.name,
+      url: absoluteUrl("/"),
+      description: seoDescription,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: absoluteUrl("/search?q={search_term_string}"),
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: seoTitle,
+      url: absoluteUrl("/"),
+      description: seoDescription
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: `${siteConfig.name}最新资源`,
+      itemListElement: latestResources.slice(0, 8).map((resource, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: absoluteUrl(`/resource/${resource.slug}`),
+        name: resource.title
+      }))
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: homeFaqs.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer
+        }
+      }))
+    }
+  ];
 
   const freshResources = latestResources.slice(0, 12);
   const rankedResources = hotResources.slice(0, freshResources.length);
@@ -53,7 +143,7 @@ export default function Home({
 
   return (
     <>
-      <Seo title="夸克网盘资料搜索站" description={siteConfig.description} path="/" />
+      <Seo title={seoTitle} description={seoDescription} path="/" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -80,12 +170,12 @@ export default function Home({
             <section className="home-v4-section home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <h2>最新夸克网盘资料</h2>
+                  <h2>热门合集夸克网盘资料</h2>
                 </div>
                 <Link href="/search?q=">查看更多</Link>
               </div>
               <div className="home-v4-resource-list">
-                {freshResources.map((resource) => (
+                {rankedResources.map((resource) => (
                   <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
                     <div className="home-v4-resource-item__main">
                       <span className="home-v4-resource-item__category">{resource.category}</span>
@@ -104,11 +194,11 @@ export default function Home({
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <h2>热门夸克网盘资料</h2>
+                  <h2>最新夸克网盘资料</h2>
                 </div>
               </div>
               <div className="home-v4-resource-list">
-                {rankedResources.map((resource) => (
+                {freshResources.map((resource) => (
                   <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
                     <div className="home-v4-resource-item__main">
                       <span className="home-v4-resource-item__category">{resource.category}</span>
@@ -175,6 +265,81 @@ export default function Home({
                 >
                   <strong>{channel.name}</strong>
                 </Link>
+              ))}
+            </div>
+          </section>
+        </section>
+
+        <section className="home-v4-seo">
+          <section className="home-v4-panel home-v4-seo__block">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>关于本站：夸克网盘资源搜索与整理入口</h2>
+              </div>
+            </div>
+            <div className="home-v4-seo__content">
+              <p>
+                夸克网盘资料搜索站是一个面向夸克网盘资源检索与浏览的网站，重点整理学习资料、课程素材、办公模板、
+                软件工具、电子书与各类专题合集，帮助你更快定位需要的夸克网盘资源。
+              </p>
+              <p>
+                首页聚合了最新夸克网盘资料、热门夸克网盘资料、常用搜索词、热门标签与频道入口。相比只靠站内搜索，
+                这种结构更适合快速浏览资源趋势，也更方便按主题继续深入查找。
+              </p>
+              <div className="home-v4-seo__chips">
+                {featuredChannels.slice(0, 6).map((channel) => (
+                  <Link className="home-v4-tag" href={`/channel/${channel.slug}`} key={channel.id}>
+                    <span>{channel.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="home-v4-panel home-v4-seo__block">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>本站适合查找哪些夸克网盘资源</h2>
+              </div>
+            </div>
+            <div className="home-v4-seo__list">
+              {homeResourceScopes.map((item) => (
+                <article className="home-v4-seo__list-item" key={item.title}>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-v4-panel home-v4-seo__block">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>如何使用本站查找夸克资料</h2>
+              </div>
+            </div>
+            <ol className="home-v4-seo__steps">
+              {homeGuideSteps.map((step) => (
+                <li className="home-v4-seo__step" key={step.title}>
+                  <strong>{step.title}</strong>
+                  <p>{step.description}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="home-v4-panel home-v4-seo__block">
+            <div className="home-v4-section__head">
+              <div>
+                <h2>常见问题</h2>
+              </div>
+            </div>
+            <div className="home-v4-seo__faq">
+              {homeFaqs.map((item) => (
+                <article className="home-v4-seo__faq-item" key={item.question}>
+                  <h3>{item.question}</h3>
+                  <p>{item.answer}</p>
+                </article>
               ))}
             </div>
           </section>

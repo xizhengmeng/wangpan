@@ -2300,6 +2300,125 @@ img {
   font-weight: 600;
 }
 
+/* ============================================================
+   Mega Menu (三级导航 — 教育考试频道)
+   左列同普通下拉菜单，鼠标悬停某分类时右侧浮出三级 panel
+   ============================================================ */
+
+/* mega submenu 本身与普通 submenu 完全一致，只需放开 overflow */
+.nav-submenu--mega {
+  overflow: visible;
+}
+
+/* 每一行：二级分类 */
+.nav-mega-row {
+  position: relative;
+}
+
+.nav-mega-row__link {
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav-mega-arrow {
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.nav-mega-row--has-panel:hover .nav-mega-arrow {
+  color: var(--brand);
+}
+
+/*
+ * 透明桥接伪元素：覆盖从行到面板之间的 10px 空隙，
+ * 让鼠标在两者之间移动时不丢失 hover 状态
+ */
+.nav-mega-row--has-panel::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 14px;
+  height: 100%;
+  background: transparent;
+}
+
+/* 右侧浮出面板
+ * 隐藏时加 180ms delay（transition-delay），让鼠标有时间移入面板；
+ * 显示时 delay 为 0，立即出现。
+ */
+.nav-mega-panel {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: -6px;
+  z-index: 40;
+  width: max-content;
+  min-width: 120px;
+  max-width: min(300px, calc(100vw - 40px));
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 42px rgba(16, 24, 40, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  /* 消失时延迟 180ms，防止鼠标穿越间隙时面板闪消 */
+  transition: opacity 0.15s ease 0.18s;
+}
+
+/* 鼠标在行上 → 立即显示，无延迟 */
+.nav-mega-row--has-panel:hover .nav-mega-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* 鼠标已在面板内 → 保持显示 */
+.nav-mega-panel:hover {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.nav-mega-panel__head {
+  margin: 0 0 6px;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* 纵向列表 */
+.nav-mega-panel__topics {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-mega-topic {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-mega-topic:hover {
+  background: var(--brand-light);
+  color: var(--brand);
+}
+
 .header-search {
   margin-left: auto;
   display: flex;
@@ -2474,6 +2593,15 @@ img {
     transform: none;
     max-height: 320px;
     margin-top: 8px;
+  }
+
+  /* Mega menu mobile: panel flyout is disabled, categories link directly */
+  .nav-mega-panel {
+    display: none;
+  }
+
+  .nav-mega-arrow {
+    display: none;
   }
 }
 
@@ -3727,6 +3855,15 @@ img {
 @media (max-width: 720px) {
   .container {
     width: min(var(--container), calc(100vw - 40px));
+  }
+
+  .resource-page-shell {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .resource-page-shell .container {
+    width: min(var(--container), calc(100vw - 52px));
   }
 
   .nav {
@@ -5332,6 +5469,113 @@ img {
   order: 2;
 }
 
+.home-v4-seo {
+  display: grid;
+  gap: 14px;
+  order: 4;
+}
+
+.home-v4-seo__block {
+  overflow: hidden;
+}
+
+.home-v4-seo__content {
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.home-v4-seo__content p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.home-v4-seo__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.home-v4-seo__list {
+  display: grid;
+  gap: 0;
+}
+
+.home-v4-seo__list-item {
+  padding: 0 20px 16px;
+}
+
+.home-v4-seo__list-item + .home-v4-seo__list-item {
+  padding-top: 16px;
+  border-top: 1px solid #edf1f6;
+}
+
+.home-v4-seo__list-item h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.home-v4-seo__list-item p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.home-v4-seo__steps {
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px 40px;
+}
+
+.home-v4-seo__step {
+  color: var(--text-secondary);
+}
+
+.home-v4-seo__step strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.home-v4-seo__step p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.home-v4-seo__faq {
+  display: grid;
+  gap: 0;
+}
+
+.home-v4-seo__faq-item {
+  padding: 0 20px 16px;
+}
+
+.home-v4-seo__faq-item + .home-v4-seo__faq-item {
+  padding-top: 16px;
+  border-top: 1px solid #edf1f6;
+}
+
+.home-v4-seo__faq-item h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.home-v4-seo__faq-item p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
 .home-v4-discovery__browse {
   padding: 0 16px 16px;
 }
@@ -5847,7 +6091,8 @@ img {
   }
 
   .home-v4-discovery .home-v4-tags,
-  .home-v4-discovery__browse {
+  .home-v4-discovery__browse,
+  .home-v4-seo__content {
     padding: 0 14px 14px;
   }
 
@@ -5874,11 +6119,16 @@ img {
     padding: 16px;
   }
 
-  .home-v4-rank__item {
-    padding: 12px 14px;
+  .home-v4-tags {
+    padding: 0 14px 14px;
   }
 
-  .home-v4-tags {
+  .home-v4-seo__steps {
+    padding: 0 14px 14px 34px;
+  }
+
+  .home-v4-seo__list-item,
+  .home-v4-seo__faq-item {
     padding: 0 14px 14px;
   }
 
@@ -5978,6 +6228,15 @@ img {
   .home-v4 {
     padding-left: 12px;
     padding-right: 12px;
+  }
+
+  .resource-page-shell {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .resource-page-shell .container {
+    width: min(var(--container), calc(100vw - 44px));
   }
 
   .home-v4-search {
