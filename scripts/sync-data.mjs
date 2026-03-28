@@ -99,8 +99,8 @@ try {
 
   for (const category of structure.categories) {
     await connection.execute(
-      `INSERT INTO categories (id, channel_id, parent_id, name, slug, description, sort_order, featured, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO categories (id, channel_id, parent_id, name, slug, description, sort_order, featured, show_on_home, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          channel_id = VALUES(channel_id),
          parent_id = VALUES(parent_id),
@@ -109,6 +109,7 @@ try {
          description = VALUES(description),
          sort_order = VALUES(sort_order),
          featured = VALUES(featured),
+         show_on_home = VALUES(show_on_home),
          status = VALUES(status)`,
       [
         category.id,
@@ -119,6 +120,7 @@ try {
         category.description,
         category.sort,
         category.featured ? 1 : 0,
+        category.show_on_home ? 1 : 0,
         category.status,
       ]
     );

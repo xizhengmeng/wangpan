@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GetServerSideProps } from "next";
+import { useState } from "react";
 
 import { SearchBox } from "@/components/SearchBox";
 import { Seo } from "@/components/Seo";
@@ -14,12 +15,35 @@ import {
 } from "@/lib/store";
 import { Channel, Resource } from "@/lib/types";
 
+interface HomeCategoryShowcaseItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  channelName: string;
+  channelSlug: string;
+  topics: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    summary: string;
+    featured?: boolean;
+    resources: Array<{
+      id: string;
+      title: string;
+      slug: string;
+      updated_at: string;
+    }>;
+  }>;
+}
+
 interface HomeProps {
   latestResources: Resource[];
   hotResources: Resource[];
   tags: Array<{ name: string; slug: string; count: number }>;
   featuredChannels: Channel[];
   hotSearches: string[];
+  homeCategories: HomeCategoryShowcaseItem[];
 }
 
 function formatDate(dateStr: string) {
@@ -81,12 +105,101 @@ const homeFaqs = [
   }
 ];
 
+function HomeCategoryGroup({ item }: { item: HomeCategoryShowcaseItem }) {
+  const [activeTopicId, setActiveTopicId] = useState(item.topics[0]?.id || "");
+  const activeTopic = item.topics.find((topic) => topic.id === activeTopicId) || item.topics[0];
+
+  if (!activeTopic) {
+    return null;
+  }
+
+  return (
+    <section className="home-v4-panel home-v4-category-section">
+      <div className="home-v4-section__head home-v4-category-section__head">
+        <div>
+          <span className="home-v4-categories__eyebrow">{item.channelName}</span>
+          <h2>{item.name}</h2>
+          <p>{item.description || `浏览 ${item.name} 下的专题和最新更新资源。`}</p>
+        </div>
+        <Link className="home-v4-categories__group-link" href={`/category/${item.slug}`}>查看栏目</Link>
+      </div>
+
+      <div className="home-v4-category-section__body">
+        <div className="home-v4-category-section__side">
+          <div className="home-v4-categories__topic-tabs" role="tablist" aria-label={`${item.name} 专题切换`}>
+            {item.topics.map((topic) => (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={topic.id === activeTopic.id}
+                className={`home-v4-categories__topic-tab${topic.id === activeTopic.id ? " home-v4-categories__topic-tab--active" : ""}`}
+                key={topic.id}
+                onClick={() => setActiveTopicId(topic.id)}
+              >
+                {topic.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="home-v4-categories__topic-summary">
+            <strong>{activeTopic.name}</strong>
+            <p>{activeTopic.summary || "切换专题后查看该专题下最新更新的资源。"} </p>
+          </div>
+        </div>
+
+        <div className="home-v4-category-section__main">
+          <div className="home-v4-categories__resource-list">
+            {activeTopic.resources.slice(0, 6).map((resource) => (
+              <Link className="home-v4-categories__resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
+                <div className="home-v4-categories__resource-main">
+                  <span className="home-v4-categories__resource-badge">新</span>
+                  <strong>{resource.title}</strong>
+                </div>
+                <time className="home-v4-categories__resource-time" dateTime={resource.updated_at}>
+                  {formatDate(resource.updated_at)}
+                </time>
+              </Link>
+            ))}
+
+            {activeTopic.resources.length === 0 ? (
+              <div className="home-v4-categories__empty">
+                <strong>这个专题暂时还没有可展示的资源。</strong>
+                <p>可以先进入专题页，后续有新内容会优先更新到这里。</p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="home-v4-categories__group-foot">
+            <span>{activeTopic.featured ? "精选专题" : "专题页"}</span>
+            <Link href={`/topic/${activeTopic.slug}`}>进入专题</Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomeCategoryShowcase({ items }: { items: HomeCategoryShowcaseItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="home-v4-categories">
+      {items.map((item) => (
+        <HomeCategoryGroup item={item} key={item.id} />
+      ))}
+    </div>
+  );
+}
+
 export default function Home({
   latestResources,
   hotResources,
   tags,
   featuredChannels,
-  hotSearches
+  hotSearches,
+  homeCategories
 }: HomeProps) {
   const seoTitle = "夸克网盘资源搜索站";
   const seoDescription =
@@ -270,6 +383,8 @@ export default function Home({
           </section>
         </section>
 
+        {homeCategories.length > 0 ? <HomeCategoryShowcase items={homeCategories} /> : null}
+
         <section className="home-v4-seo">
           <section className="home-v4-panel home-v4-seo__block">
             <div className="home-v4-section__head">
@@ -396,13 +511,84 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       ? structure.site_profile.hot_searches.slice(0, 8)
       : analytics.topQueries.map((item) => item.query).slice(0, 8);
 
+  const channelsById = new Map(structure.channels.map((channel) => [channel.id, channel]));
+  const topicsByCategoryId = new Map<string, HomeCategoryShowcaseItem["topics"]>();
+  const resourcesByTopicId = new Map<string, Array<HomeCategoryShowcaseItem["topics"][number]["resources"][number]>>();
+
+  for (const resource of [...publishedResources].sort((a, b) => {
+    const timeDelta = new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    if (timeDelta !== 0) {
+      return timeDelta;
+    }
+    return a.title.localeCompare(b.title, "zh-CN");
+  })) {
+    for (const topicId of resource.topic_ids || []) {
+      const list = resourcesByTopicId.get(topicId) || [];
+      list.push({
+        id: resource.id,
+        title: resource.title,
+        slug: resource.slug,
+        updated_at: resource.updated_at
+      });
+      resourcesByTopicId.set(topicId, list);
+    }
+  }
+
+  for (const topic of structure.topics
+    .filter((item) => item.status === "active")
+    .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"))) {
+    const list = topicsByCategoryId.get(topic.category_id) || [];
+    list.push({
+      id: topic.id,
+      name: topic.name,
+      slug: topic.slug,
+      summary: topic.summary,
+      featured: topic.featured,
+      resources: (resourcesByTopicId.get(topic.id) || []).slice(0, 8)
+    });
+    topicsByCategoryId.set(topic.category_id, list);
+  }
+
+  const categoriesWithTopics = structure.categories
+    .filter((category) => category.status === "active")
+    .map((category) => {
+      const channel = channelsById.get(category.channel_id);
+      const topics = topicsByCategoryId.get(category.id) || [];
+
+      return {
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        channelName: channel?.name || "未分频道",
+        channelSlug: channel?.slug || "",
+        sort: category.sort,
+        channelSort: channel?.sort || 0,
+        featured: Boolean(category.featured),
+        show_on_home: Boolean(category.show_on_home),
+        topics
+      };
+    })
+    .filter((category) => category.topics.length > 0);
+
+  const homeCategoriesSource =
+    categoriesWithTopics.some((category) => category.show_on_home)
+      ? categoriesWithTopics.filter((category) => category.show_on_home)
+      : categoriesWithTopics.filter((category) => category.featured).slice(0, 4);
+
+  const homeCategories = homeCategoriesSource
+    .sort((a, b) => a.channelSort - b.channelSort || a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"))
+    .slice(0, 6)
+    .map(({ sort: _sort, channelSort: _channelSort, featured: _featured, show_on_home: _showOnHome, ...item }) => item);
+
   return {
     props: {
       latestResources: publishedResources.slice(0, 16),
       hotResources: hotResources.length > 0 ? (hotResources as Resource[]) : publishedResources.slice(0, 12),
       tags: resolvedTags.slice(0, 18),
       featuredChannels: resolvedFeaturedChannels.slice(0, 6),
-      hotSearches
+      hotSearches,
+      homeCategories
     }
   };
 };

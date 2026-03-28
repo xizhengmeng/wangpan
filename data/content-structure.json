@@ -111,6 +111,7 @@
       "description": "初中课程、提升资料和阶段性练习内容。",
       "sort": 30,
       "featured": true,
+      "show_on_home": true,
       "status": "active"
     },
     {
@@ -122,6 +123,7 @@
       "description": "高中同步和高考相关内容的资料栏目。",
       "sort": 40,
       "featured": true,
+      "show_on_home": true,
       "status": "active"
     },
     {
@@ -155,6 +157,7 @@
       "description": "AI 工具、提示词、课程和实战资料。",
       "sort": 10,
       "featured": true,
+      "show_on_home": true,
       "status": "active"
     },
     {
@@ -166,6 +169,7 @@
       "description": "Office、Excel、PPT 和办公提效资料。",
       "sort": 20,
       "featured": true,
+      "show_on_home": true,
       "status": "active"
     },
     {

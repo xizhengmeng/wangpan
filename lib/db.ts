@@ -44,6 +44,7 @@ const requiredColumns: Record<string, Record<string, string>> = {
     description: "TEXT NOT NULL",
     sort_order: "INT NOT NULL DEFAULT 0",
     featured: "TINYINT(1) NOT NULL DEFAULT 0",
+    show_on_home: "TINYINT(1) NOT NULL DEFAULT 0",
     status: "ENUM('active','hidden') NOT NULL DEFAULT 'active'",
     created_at: "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
     updated_at: "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",

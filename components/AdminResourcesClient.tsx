@@ -77,7 +77,17 @@ const emptyResForm = {
 };
 
 const emptyChannelForm = { id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
-const emptyCategoryForm = { id: "", channel_id: "", name: "", slug: "", description: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden" };
+const emptyCategoryForm = {
+  id: "",
+  channel_id: "",
+  name: "",
+  slug: "",
+  description: "",
+  sort_order: 0,
+  featured: false,
+  show_on_home: false,
+  status: "active" as "active" | "hidden"
+};
 const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", download_url: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden", field_schema: "" };
 
 function formatDelta(value: number) {
@@ -1062,12 +1072,13 @@ export function AdminResourcesClient({
                                 <span className="stree-row__name">{cat.name}</span>
                                 <span className="stree-row__slug">{cat.slug}</span>
                                 {cat.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+                                {cat.show_on_home && <span className="stree-tag stree-tag--featured">首页</span>}
                               </div>
                               <div className="stree-row__actions">
                                 <button type="button" className="stree-action stree-action--add"
                                   onClick={() => { setTopicForm({ ...emptyTopicForm, category_id: cat.id }); setStructurePanel("topic"); }}>+ 专题</button>
                                 <button type="button" className="stree-action"
-                                  onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
+                                  onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, show_on_home: cat.show_on_home ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
                                 <button type="button" className="stree-action stree-action--del"
                                   onClick={() => handleDeleteStructure("category", cat.id)}>删除</button>
                               </div>
@@ -1252,6 +1263,10 @@ export function AdminResourcesClient({
                         <div className="adm-field adm-field--check"><label>
                           <input type="checkbox" checked={categoryForm.featured} onChange={(e) => setCategoryForm((c) => ({ ...c, featured: e.target.checked }))} />
                           设为精选栏目
+                        </label></div>
+                        <div className="adm-field adm-field--check"><label>
+                          <input type="checkbox" checked={categoryForm.show_on_home} onChange={(e) => setCategoryForm((c) => ({ ...c, show_on_home: e.target.checked }))} />
+                          显示在首页栏目展示区
                         </label></div>
                         <div className="admin-form-actions">
                           <button className="adm-btn adm-btn--primary" type="submit">保存</button>

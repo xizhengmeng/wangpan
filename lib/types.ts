@@ -102,6 +102,7 @@ export interface CategoryNode {
   description: string;
   sort: number;
   featured?: boolean;
+  show_on_home?: boolean;
   status: "active" | "hidden";
 }
 

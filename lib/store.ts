@@ -78,6 +78,7 @@ type CategoryRow = RowDataPacket & {
   description: string;
   sort_order: number;
   featured: number;
+  show_on_home: number;
   status: "active" | "hidden";
 };
 
@@ -751,9 +752,9 @@ export async function getContentStructure(): Promise<ContentStructure> {
        ORDER BY featured DESC, sort_order ASC, name ASC`
     ),
     queryRows<CategoryRow>(
-      `SELECT id, channel_id, parent_id, name, slug, description, sort_order, featured, status
+      `SELECT id, channel_id, parent_id, name, slug, description, sort_order, featured, show_on_home, status
        FROM categories
-       ORDER BY channel_id ASC, featured DESC, sort_order ASC, name ASC`
+       ORDER BY show_on_home DESC, channel_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
     queryRows<TopicRow>(
       `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema
@@ -793,6 +794,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       description: row.description,
       sort: row.sort_order,
       featured: Boolean(row.featured),
+      show_on_home: Boolean(row.show_on_home),
       status: row.status,
     })),
     topics: topicRows.map<TopicNode>((row) => ({
@@ -1031,17 +1033,19 @@ export async function saveCategory(input: {
   description: string;
   sort_order?: number;
   featured?: boolean;
+  show_on_home?: boolean;
   status?: "active" | "hidden";
 }): Promise<CategoryNode> {
   const id = input.id || `cat_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const sort_order = input.sort_order ?? 0;
   const featured = input.featured ? 1 : 0;
+  const show_on_home = input.show_on_home ? 1 : 0;
   const status = input.status ?? "active";
   const parent_id = input.parent_id || null;
 
   await execute(
-    `INSERT INTO categories (id, channel_id, parent_id, name, slug, description, sort_order, featured, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO categories (id, channel_id, parent_id, name, slug, description, sort_order, featured, show_on_home, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        channel_id = VALUES(channel_id),
        parent_id = VALUES(parent_id),
@@ -1050,10 +1054,22 @@ export async function saveCategory(input: {
        description = VALUES(description),
        sort_order = VALUES(sort_order),
        featured = VALUES(featured),
+       show_on_home = VALUES(show_on_home),
        status = VALUES(status)`,
-    [id, input.channel_id, parent_id, input.name, input.slug, input.description, sort_order, featured, status]
+    [id, input.channel_id, parent_id, input.name, input.slug, input.description, sort_order, featured, show_on_home, status]
   );
-  return { id, channel_id: input.channel_id, parent_id, name: input.name, slug: input.slug, description: input.description, sort: sort_order, featured: Boolean(featured), status };
+  return {
+    id,
+    channel_id: input.channel_id,
+    parent_id,
+    name: input.name,
+    slug: input.slug,
+    description: input.description,
+    sort: sort_order,
+    featured: Boolean(featured),
+    show_on_home: Boolean(show_on_home),
+    status
+  };
 }
 
 export async function deleteCategory(id: string) {
