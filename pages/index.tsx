@@ -116,40 +116,34 @@ function HomeCategoryGroup({ item }: { item: HomeCategoryShowcaseItem }) {
   return (
     <section className="home-v4-panel home-v4-category-section">
       <div className="home-v4-section__head home-v4-category-section__head">
-        <div>
-          <span className="home-v4-categories__eyebrow">{item.channelName}</span>
-          <h2>{item.name}</h2>
-          <p>{item.description || `浏览 ${item.name} 下的专题和最新更新资源。`}</p>
-        </div>
+        <h2>{item.name}</h2>
         <Link className="home-v4-categories__group-link" href={`/category/${item.slug}`}>查看栏目</Link>
       </div>
 
       <div className="home-v4-category-section__body">
-        <div className="home-v4-category-section__side">
-          <div className="home-v4-categories__topic-tabs" role="tablist" aria-label={`${item.name} 专题切换`}>
-            {item.topics.map((topic) => (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={topic.id === activeTopic.id}
-                className={`home-v4-categories__topic-tab${topic.id === activeTopic.id ? " home-v4-categories__topic-tab--active" : ""}`}
-                key={topic.id}
-                onClick={() => setActiveTopicId(topic.id)}
-              >
-                {topic.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="home-v4-categories__topic-summary">
-            <strong>{activeTopic.name}</strong>
-            <p>{activeTopic.summary || "切换专题后查看该专题下最新更新的资源。"} </p>
-          </div>
+        <div className="home-v4-categories__topic-tabs" role="tablist" aria-label={`${item.name} 专题切换`}>
+          {item.topics.map((topic) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={topic.id === activeTopic.id}
+              className={`home-v4-categories__topic-tab${topic.id === activeTopic.id ? " home-v4-categories__topic-tab--active" : ""}`}
+              key={topic.id}
+              onClick={() => setActiveTopicId(topic.id)}
+            >
+              {topic.name}
+            </button>
+          ))}
         </div>
 
         <div className="home-v4-category-section__main">
+          <div className="home-v4-categories__resource-head">
+            <strong>{activeTopic.name}</strong>
+            <Link href={`/topic/${activeTopic.slug}`}>进入专题</Link>
+          </div>
+
           <div className="home-v4-categories__resource-list">
-            {activeTopic.resources.slice(0, 6).map((resource) => (
+            {activeTopic.resources.slice(0, 15).map((resource) => (
               <Link className="home-v4-categories__resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
                 <div className="home-v4-categories__resource-main">
                   <span className="home-v4-categories__resource-badge">新</span>
@@ -167,11 +161,6 @@ function HomeCategoryGroup({ item }: { item: HomeCategoryShowcaseItem }) {
                 <p>可以先进入专题页，后续有新内容会优先更新到这里。</p>
               </div>
             ) : null}
-          </div>
-
-          <div className="home-v4-categories__group-foot">
-            <span>{activeTopic.featured ? "精选专题" : "专题页"}</span>
-            <Link href={`/topic/${activeTopic.slug}`}>进入专题</Link>
           </div>
         </div>
       </div>
