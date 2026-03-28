@@ -27,19 +27,6 @@ function formatDate(dateStr: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function rankLabel(index: number) {
-  if (index === 0) {
-    return "热";
-  }
-  if (index === 1) {
-    return "升";
-  }
-  if (index === 2) {
-    return "新";
-  }
-  return String(index + 1).padStart(2, "0");
-}
-
 export default function Home({
   latestResources,
   hotResources,
@@ -100,12 +87,13 @@ export default function Home({
               <div className="home-v4-resource-list">
                 {freshResources.map((resource) => (
                   <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <div className="home-v4-resource-item__meta">
+                    <div className="home-v4-resource-item__main">
                       <span className="home-v4-resource-item__category">{resource.category}</span>
-                      <span>{formatDate(resource.updated_at)}</span>
+                      <h3>{resource.title}</h3>
                     </div>
-                    <h3>{resource.title}</h3>
-                    <p>{resource.summary}</p>
+                    <time className="home-v4-resource-item__time" dateTime={resource.updated_at}>
+                      {formatDate(resource.updated_at)}
+                    </time>
                   </Link>
                 ))}
               </div>
@@ -116,15 +104,19 @@ export default function Home({
             <section className="home-v4-panel">
               <div className="home-v4-section__head">
                 <div>
-                  <span className="home-v4-section__eyebrow">热门资料</span>
                   <h2>热门夸克网盘资料</h2>
                 </div>
               </div>
-              <div className="home-v4-rank">
-                {rankedResources.map((resource, index) => (
-                  <Link className="home-v4-rank__item" href={`/resource/${resource.slug}`} key={resource.id}>
-                    <span className="home-v4-rank__index">{rankLabel(index)}</span>
-                    <span className="home-v4-rank__title">{resource.title}</span>
+              <div className="home-v4-resource-list">
+                {rankedResources.map((resource) => (
+                  <Link className="home-v4-resource-item" href={`/resource/${resource.slug}`} key={resource.id}>
+                    <div className="home-v4-resource-item__main">
+                      <span className="home-v4-resource-item__category">{resource.category}</span>
+                      <h3>{resource.title}</h3>
+                    </div>
+                    <time className="home-v4-resource-item__time" dateTime={resource.updated_at}>
+                      {formatDate(resource.updated_at)}
+                    </time>
                   </Link>
                 ))}
               </div>

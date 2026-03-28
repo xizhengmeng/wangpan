@@ -6,13 +6,62 @@ import { SearchRecorder } from "@/components/SearchRecorder";
 import { Seo } from "@/components/Seo";
 import { TrackedLink } from "@/components/TrackedLink";
 import { formatDate } from "@/lib/format";
+import { DEFAULT_SEARCH_PAGE_SIZE, normalizeSearchPageSize, SEARCH_PAGE_SIZE_OPTIONS } from "@/lib/search";
 import { runSearch } from "@/lib/store";
 import { SearchResponse } from "@/lib/types";
 
 interface SearchPageProps extends SearchResponse {}
 
+function buildSearchHref(query: string, page: number, pageSize: number) {
+  const params = new URLSearchParams();
+
+  if (query) {
+    params.set("q", query);
+  }
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  if (pageSize !== DEFAULT_SEARCH_PAGE_SIZE) {
+    params.set("pageSize", String(pageSize));
+  }
+
+  const nextQuery = params.toString();
+  return nextQuery ? `/search?${nextQuery}` : "/search";
+}
+
+function buildPagination(currentPage: number, totalPages: number, maxVisible = 7) {
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const items: Array<number | "ellipsis"> = [1];
+  const innerSlots = maxVisible - 2;
+  let start = Math.max(2, currentPage - Math.floor(innerSlots / 2));
+  let end = Math.min(totalPages - 1, start + innerSlots - 1);
+
+  if (end - start + 1 < innerSlots) {
+    start = Math.max(2, end - innerSlots + 1);
+  }
+
+  if (start > 2) {
+    items.push("ellipsis");
+  }
+
+  for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
+    items.push(pageNumber);
+  }
+
+  if (end < totalPages - 1) {
+    items.push("ellipsis");
+  }
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function SearchPage({ items, total, page, pageSize, query }: SearchPageProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const paginationItems = buildPagination(page, totalPages);
 
   return (
     <>
@@ -24,18 +73,20 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
       />
       <SearchRecorder query={query} total={total} />
 
-      <div className="page-shell">
+      <div className="page-shell search-page">
         <div className="container">
-          <section className="page-hero panel">
+          <section className="page-hero panel search-page__hero">
             <span className="eyebrow">站内搜索</span>
             <h1 className="page-title">搜索夸克网盘资料</h1>
             <p className="page-copy">
               输入关键词，按标题、标签、内容相关度排序，快速找到您需要的资料。
             </p>
-            <SearchBox initialQuery={query} />
+            <div className="search-page__form">
+              <SearchBox initialQuery={query} />
+            </div>
           </section>
 
-          <section className="panel" style={{ padding: 24 }}>
+          <section className="panel search-page__results">
             <div className="section-head">
               <div>
                 <h2 className="section-title">“{query || "全部"}” 的搜索结果</h2>
@@ -47,23 +98,25 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
               <div className="result-list">
                 {items.map((item, index) => (
                   <article className="result-row" key={item.id}>
-                    <div className="result-row__meta">
-                      <span className="result-row__category">{item.category}</span>
-                      <span>更新于 {formatDate(item.updated_at)}</span>
+                    <div className="search-page__result-head">
+                      <h3>
+                        <TrackedLink
+                          href={`/resource/${item.slug}`}
+                          eventName="search_result_click"
+                          payload={{
+                            query,
+                            resource_id: item.id,
+                            result_rank: (page - 1) * pageSize + index + 1
+                          }}
+                        >
+                          {item.title}
+                        </TrackedLink>
+                      </h3>
+                      <div className="result-row__meta">
+                        <span className="result-row__category">{item.category}</span>
+                        <span>{formatDate(item.updated_at)}</span>
+                      </div>
                     </div>
-                    <h3>
-                      <TrackedLink
-                        href={`/resource/${item.slug}`}
-                        eventName="search_result_click"
-                        payload={{
-                          query,
-                          resource_id: item.id,
-                          result_rank: (page - 1) * pageSize + index + 1
-                        }}
-                      >
-                        {item.title}
-                      </TrackedLink>
-                    </h3>
                     <p className="result-row__summary">{item.summary}</p>
                   </article>
                 ))}
@@ -83,18 +136,86 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
               </div>
             )}
 
-            {totalPages > 1 ? (
-              <div className="chip-row" style={{ marginTop: 24 }}>
-                {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
-                  <Link
-                    className="chip"
-                    href={`/search?q=${encodeURIComponent(query)}&page=${pageNumber}`}
-                    key={pageNumber}
-                  >
-                    第 {pageNumber} 页
-                  </Link>
-                ))}
-              </div>
+            {items.length > 0 ? (
+              <nav aria-label="搜索结果分页" className="search-pagination">
+                <div className="search-pagination__bar">
+                  <p className="search-pagination__summary">
+                    第 {page} / {totalPages} 页，共 {total} 条结果
+                  </p>
+                  <div className="search-pagination__actions">
+                    {totalPages > 1 ? (
+                      <div className="search-pagination__pages">
+                        {page > 1 ? (
+                          <Link className="search-pagination__page" href={buildSearchHref(query, page - 1, pageSize)}>
+                            上一页
+                          </Link>
+                        ) : (
+                          <span className="search-pagination__page search-pagination__page--disabled">上一页</span>
+                        )}
+
+                        {paginationItems.map((item, index) =>
+                          item === "ellipsis" ? (
+                            <span className="search-pagination__ellipsis" key={`ellipsis-${index}`}>
+                              …
+                            </span>
+                          ) : item === page ? (
+                            <span className="search-pagination__page search-pagination__page--active" key={item}>
+                              {item}
+                            </span>
+                          ) : (
+                            <Link
+                              className="search-pagination__page"
+                              href={buildSearchHref(query, item, pageSize)}
+                              key={item}
+                            >
+                              {item}
+                            </Link>
+                          )
+                        )}
+
+                        {page < totalPages ? (
+                          <Link className="search-pagination__page" href={buildSearchHref(query, page + 1, pageSize)}>
+                            下一页
+                          </Link>
+                        ) : (
+                          <span className="search-pagination__page search-pagination__page--disabled">下一页</span>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <form action="/search" className="search-pagination__controls" method="get">
+                      {query ? <input name="q" type="hidden" value={query} /> : null}
+                      <label className="search-pagination__label" htmlFor="pageSize">
+                        每页
+                      </label>
+                      <select defaultValue={String(pageSize)} id="pageSize" name="pageSize">
+                        {SEARCH_PAGE_SIZE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option} 条
+                          </option>
+                        ))}
+                      </select>
+                      <label className="search-pagination__label" htmlFor="pageJump">
+                        跳至
+                      </label>
+                      <input
+                        className="search-pagination__jump-input"
+                        defaultValue={String(page)}
+                        id="pageJump"
+                        inputMode="numeric"
+                        max={totalPages}
+                        min={1}
+                        name="page"
+                        type="number"
+                      />
+                      <span className="search-pagination__label">页</span>
+                      <button className="button button-secondary" type="submit">
+                        前往
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </nav>
             ) : null}
           </section>
         </div>
@@ -106,8 +227,11 @@ export default function SearchPage({ items, total, page, pageSize, query }: Sear
 export const getServerSideProps: GetServerSideProps<SearchPageProps> = async ({ query }) => {
   const q = typeof query.q === "string" ? query.q : "";
   const page = Number.parseInt(typeof query.page === "string" ? query.page : "1", 10) || 1;
+  const pageSize = normalizeSearchPageSize(
+    Number.parseInt(typeof query.pageSize === "string" ? query.pageSize : String(DEFAULT_SEARCH_PAGE_SIZE), 10)
+  );
 
   return {
-    props: await runSearch(q, page)
+    props: await runSearch(q, page, pageSize)
   };
 };

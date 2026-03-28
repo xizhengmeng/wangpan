@@ -734,9 +734,9 @@ export async function getResourcesByTagSlug(slug: string) {
   return resources.filter((resource) => resourceIds.has(resource.id));
 }
 
-export async function runSearch(query: string, page = 1): Promise<SearchResponse> {
+export async function runSearch(query: string, page = 1, pageSize?: number): Promise<SearchResponse> {
   const publishedResources = await getPublishedResources();
-  return searchResources(publishedResources, query, page);
+  return searchResources(publishedResources, query, page, pageSize);
 }
 
 export async function getContentStructure(): Promise<ContentStructure> {

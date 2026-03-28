@@ -1,6 +1,11 @@
 import { Resource, SearchResponse, SearchResult } from "@/lib/types";
 
-const PAGE_SIZE = 12;
+export const SEARCH_PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+export const DEFAULT_SEARCH_PAGE_SIZE = 10;
+
+export function normalizeSearchPageSize(pageSize?: number) {
+  return SEARCH_PAGE_SIZE_OPTIONS.find((value) => value === pageSize) ?? DEFAULT_SEARCH_PAGE_SIZE;
+}
 
 function normalize(text: string) {
   return text.toLowerCase().trim();
@@ -36,8 +41,10 @@ export function searchResources(
   resources: Resource[],
   query: string,
   page = 1,
-  pageSize = PAGE_SIZE
+  pageSize = DEFAULT_SEARCH_PAGE_SIZE
 ): SearchResponse {
+  const requestedPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const normalizedPageSize = normalizeSearchPageSize(pageSize);
   const ranked: SearchResult[] = resources
     .map((item) => ({ item, score: scoreResource(item, query) }))
     .filter((entry) => entry.score > 0)
@@ -51,14 +58,16 @@ export function searchResources(
       );
     });
 
-  const start = (page - 1) * pageSize;
-  const paged = ranked.slice(start, start + pageSize).map((entry) => entry.item);
+  const totalPages = Math.max(1, Math.ceil(ranked.length / normalizedPageSize));
+  const normalizedPage = Math.min(requestedPage, totalPages);
+  const start = (normalizedPage - 1) * normalizedPageSize;
+  const paged = ranked.slice(start, start + normalizedPageSize).map((entry) => entry.item);
 
   return {
     items: paged,
     total: ranked.length,
-    page,
-    pageSize,
+    page: normalizedPage,
+    pageSize: normalizedPageSize,
     query
   };
 }
