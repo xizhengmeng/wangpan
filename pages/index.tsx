@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GetServerSideProps } from "next";
+import { GetStaticProps } from "next";
 import { useState } from "react";
 
 import { SearchBox } from "@/components/SearchBox";
@@ -455,7 +455,7 @@ export default function Home({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+export const getStaticProps: GetStaticProps<HomeProps> = async () => {
   const [publishedResources, analytics, structure, featuredChannels] = await Promise.all([
     getPublishedResources(),
     getAnalyticsSummary(),
@@ -580,6 +580,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       featuredChannels: resolvedFeaturedChannels.slice(0, 6),
       hotSearches,
       homeCategories
-    }
+    },
+    revalidate: 600,
   };
 };

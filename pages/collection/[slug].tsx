@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
@@ -119,17 +119,24 @@ export default function ExamCollectionPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ExamCollectionPageProps> = async ({ params }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [],
+    fallback: "blocking",
+  };
+};
+
+export const getStaticProps: GetStaticProps<ExamCollectionPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
-  const collection = getExamCollectionBySlug(slug);
+  const collection = await getExamCollectionBySlug(slug);
   if (!collection) {
     return { notFound: true };
   }
 
-  const resources = getExamCollectionResources(collection)
+  const resources = (await getExamCollectionResources(collection))
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
-  const relatedCollections = getExamCollectionsByExamSlug(collection.exam_slug)
+  const relatedCollections = (await getExamCollectionsByExamSlug(collection.exam_slug))
     .filter((item) => item.slug !== collection.slug)
     .filter((item) => {
       if (collection.filters.subject && item.filters.subject === collection.filters.subject) return true;
@@ -152,5 +159,6 @@ export const getServerSideProps: GetServerSideProps<ExamCollectionPageProps> = a
       resources,
       relatedCollections,
     },
+    revalidate: 1800,
   };
 };

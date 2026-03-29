@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 
 import { Seo } from "@/components/Seo";
@@ -116,14 +116,24 @@ export default function CollectionsHubPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<CollectionsHubPageProps> = async ({ params }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [
+      { params: { examSlug: "gaokaozhenti" } },
+      { params: { examSlug: "zhongkaozhenti" } },
+    ],
+    fallback: false,
+  };
+};
+
+export const getStaticProps: GetStaticProps<CollectionsHubPageProps> = async ({ params }) => {
   const examSlug = String(params?.examSlug || "") as "gaokaozhenti" | "zhongkaozhenti";
   if (examSlug !== "gaokaozhenti" && examSlug !== "zhongkaozhenti") {
     return { notFound: true };
   }
 
   const examName = examSlug === "gaokaozhenti" ? "高考真题" : "中考真题";
-  const groups = getFeaturedExamCollections(examSlug, 18).map((group) => ({
+  const groups = (await getFeaturedExamCollections(examSlug, 18)).map((group) => ({
     type: group.type,
     label: TYPE_LABELS[group.type] || group.type,
     items: group.items.map((item) => ({
@@ -133,7 +143,7 @@ export const getServerSideProps: GetServerSideProps<CollectionsHubPageProps> = a
       resource_count: item.resource_count,
     })),
   }));
-  const total = getExamCollectionsByExamSlug(examSlug).length;
+  const total = (await getExamCollectionsByExamSlug(examSlug)).length;
 
   return {
     props: {
@@ -142,5 +152,6 @@ export const getServerSideProps: GetServerSideProps<CollectionsHubPageProps> = a
       total,
       groups,
     },
+    revalidate: 1800,
   };
 };

@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 
 import { getTopicLayout } from "@/components/topicLayouts";
 import type { TopicLayoutProps } from "@/components/topicLayouts";
@@ -9,7 +9,14 @@ export default function TopicPage(props: TopicLayoutProps) {
   return <Layout {...props} />;
 }
 
-export const getServerSideProps: GetServerSideProps<TopicLayoutProps> = async ({ params }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [],
+    fallback: "blocking",
+  };
+};
+
+export const getStaticProps: GetStaticProps<TopicLayoutProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const topic = await getTopicBySlug(slug);
 
@@ -36,6 +43,7 @@ export const getServerSideProps: GetServerSideProps<TopicLayoutProps> = async ({
       channelName: channel?.name || "未分频道",
       channelSlug: channel?.slug || "",
       resources: await getResourcesByTopicId(topic.id)
-    }
+    },
+    revalidate: 1800,
   };
 };

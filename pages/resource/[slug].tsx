@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 
 import { FeedbackButton } from "@/components/FeedbackButton";
@@ -264,13 +264,15 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
   const examFaqs = examTopic ? getExamFaqs(resource, examTopic.slug) : [];
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "CreativeWork",
+    "@type": "DigitalDocument",
     name: resource.title,
     description,
     datePublished: resource.published_at,
     dateModified: resource.updated_at,
     image: resource.cover,
-    url: absoluteUrl(`/resource/${resource.slug}`)
+    url: absoluteUrl(`/resource/${resource.slug}`),
+    keywords: [...(resource.tags || []), resource.category].filter(Boolean).join(","),
+    inLanguage: "zh-CN",
   };
 
   const seoKeywords = [...visibleTags, resource.category, "夸克网盘下载", "网盘资源"].filter(Boolean).join(",");
@@ -286,6 +288,9 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
         image={resource.cover}
         noindex={offline}
         keywords={seoKeywords}
+        ogType={offline ? "website" : "article"}
+        publishedAt={resource.published_at}
+        updatedAt={resource.updated_at}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {!offline && <TrackView name="resource_detail_view" payload={{ resource_id: resource.id }} />}
@@ -603,16 +608,21 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async ({ params, res }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [],
+    fallback: "blocking",
+  };
+};
+
+export const getStaticProps: GetStaticProps<ResourcePageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const resource = await getResourceBySlug(slug);
 
   if (!resource) return { notFound: true };
 
   const offline = resource.publish_status === "offline";
-  if (offline) {
-    res.statusCode = 410;
-  } else if (resource.publish_status !== "published") {
+  if (!offline && resource.publish_status !== "published") {
     return { notFound: true };
   }
 
@@ -635,6 +645,7 @@ export const getServerSideProps: GetServerSideProps<ResourcePageProps> = async (
       offline,
       downloadUrl: await getResolvedDownloadUrlForResource(resource),
       examTopic: examTopic ? { slug: examTopic.slug as "gaokaozhenti" | "zhongkaozhenti", name: examTopic.name } : null,
-    }
+    },
+    revalidate: 3600,
   };
 };

@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
@@ -36,7 +36,14 @@ export default function TagPage({ tagName, slug, items }: TagPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<TagPageProps> = async ({ params }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [],
+    fallback: "blocking",
+  };
+};
+
+export const getStaticProps: GetStaticProps<TagPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const items = await getResourcesByTagSlug(slug);
 
@@ -54,6 +61,7 @@ export const getServerSideProps: GetServerSideProps<TagPageProps> = async ({ par
       tagName,
       slug,
       items
-    }
+    },
+    revalidate: 1800,
   };
 };

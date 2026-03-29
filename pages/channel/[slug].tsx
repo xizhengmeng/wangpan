@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
@@ -363,7 +363,14 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<ChannelPageProps> = async ({ params }) => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    paths: [],
+    fallback: "blocking",
+  };
+};
+
+export const getStaticProps: GetStaticProps<ChannelPageProps> = async ({ params }) => {
   const slug = String(params?.slug || "");
   const channel = (await getContentStructureTree()).find((item) => item.slug === slug);
 
@@ -377,5 +384,6 @@ export const getServerSideProps: GetServerSideProps<ChannelPageProps> = async ({
     props: {
       channel,
     },
+    revalidate: 1800,
   };
 };
