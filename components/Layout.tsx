@@ -66,12 +66,23 @@ export function Layout({ children }: PropsWithChildren) {
 
     const channelItems: NavItem[] = activeChannels.map((channel) => {
       const isMega = channel.id === "channel_education_exam";
-
-      const categories = structure.categories
+      const hiddenMegaCategorySlugs = isMega
+        ? new Set(["kids-zone", "primary-school", "middle-school", "high-school"])
+        : new Set<string>();
+      const channelCategories = structure.categories
         .filter((category) => category.channel_id === channel.id && category.status === "active")
-        .sort((a, b) => a.sort - b.sort)
+        .sort((a, b) => a.sort - b.sort);
+      const topLevelCategories = channelCategories.filter(
+        (category) => !category.parent_id && !hiddenMegaCategorySlugs.has(category.slug)
+      );
+
+      const categories = topLevelCategories
         .slice(0, 8)
         .map((category) => {
+          const childCategories = channelCategories
+            .filter((child) => child.parent_id === category.id)
+            .sort((a, b) => a.sort - b.sort)
+            .map((child) => ({ label: child.name, href: `/category/${child.slug}` }));
           const base: NavChildItem = {
             label: category.name,
             href: `/category/${category.slug}`,
@@ -81,7 +92,7 @@ export function Layout({ children }: PropsWithChildren) {
               .filter((t) => t.category_id === category.id && t.status === "active")
               .sort((a, b) => a.sort - b.sort)
               .map((t) => ({ label: t.name, href: `/topic/${t.slug}` }));
-            return { ...base, topics };
+            return { ...base, topics: [...childCategories, ...topics] };
           }
           return base;
         });

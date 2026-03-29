@@ -1,5 +1,6 @@
 import DefaultTopicLayout from "./DefaultTopicLayout";
 import GaokaoZhentiLayout from "./GaokaoZhentiLayout";
+import MiddleSchoolZoneLayout from "./MiddleSchoolZoneLayout";
 import ZhongkaoZhentiLayout from "./ZhongkaoZhentiLayout";
 import type { TopicLayoutProps } from "./types";
 
@@ -11,6 +12,7 @@ export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
  */
 const registry: Partial<Record<string, TopicLayoutComponent>> = {
   gaokaozhenti: GaokaoZhentiLayout,
+  "middle-school-zone": MiddleSchoolZoneLayout,
   zhongkaozhenti: ZhongkaoZhentiLayout,
 };
 

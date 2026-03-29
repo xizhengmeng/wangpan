@@ -80,6 +80,7 @@ const emptyChannelForm = { id: "", name: "", slug: "", description: "", sort_ord
 const emptyCategoryForm = {
   id: "",
   channel_id: "",
+  parent_id: "",
   name: "",
   slug: "",
   description: "",
@@ -88,7 +89,7 @@ const emptyCategoryForm = {
   show_on_home: false,
   status: "active" as "active" | "hidden"
 };
-const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", download_url: "", sort_order: 0, featured: false, status: "active" as "active" | "hidden", field_schema: "" };
+const emptyTopicForm = { id: "", category_id: "", name: "", slug: "", summary: "", download_url: "", sort_order: 0, featured: false, show_on_home: false, status: "active" as "active" | "hidden", field_schema: "" };
 
 function formatDelta(value: number) {
   if (value === 0) {
@@ -255,7 +256,8 @@ export function AdminResourcesClient({
   const sortedResources = useMemo(
     () =>
       [...resources].sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        (a, b) =>
+          new Date(b.created_at || b.updated_at).getTime() - new Date(a.created_at || a.updated_at).getTime()
       ),
     [resources]
   );
@@ -286,6 +288,27 @@ export function AdminResourcesClient({
     () => topics.find((t) => t.id === form.topic_id)?.field_schema ?? [],
     [topics, form.topic_id]
   );
+  const categoriesByChannel = useMemo(
+    () =>
+      categories.reduce((map, category) => {
+        const list = map.get(category.channel_id) || [];
+        list.push(category);
+        map.set(category.channel_id, list);
+        return map;
+      }, new Map<string, CategoryNode[]>()),
+    [categories]
+  );
+  const categoriesByParent = useMemo(
+    () =>
+      categories.reduce((map, category) => {
+        const key = category.parent_id || "__root__";
+        const list = map.get(key) || [];
+        list.push(category);
+        map.set(key, list);
+        return map;
+      }, new Map<string, CategoryNode[]>()),
+    [categories]
+  );
 
   const currentDashboard = dashboardPeriods[dashboardPeriod];
   const dashboardMetricCards = useMemo(
@@ -298,6 +321,81 @@ export function AdminResourcesClient({
     ],
     [currentDashboard, overviewMetrics]
   );
+
+  const renderCategoryBranch = useCallback((cat: CategoryNode, isLast: boolean, depth = 0) => {
+    const childCategories = (categoriesByParent.get(cat.id) || [])
+      .filter((item) => item.channel_id === cat.channel_id)
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
+    const catTopics = topics.filter((t) => t.category_id === cat.id);
+    const catCollapsed = collapsedCategories.has(cat.id);
+
+    return (
+      <div
+        className={`stree-cat-block${isLast ? " stree-cat-block--last" : ""}${depth > 0 ? " stree-cat-block--nested" : ""}`}
+        key={cat.id}
+      >
+        <div className="stree-row stree-row--category">
+          <button type="button" className="stree-toggle stree-toggle--sm" onClick={() => toggleCategory(cat.id)}>
+            <span className={`stree-chevron${catCollapsed ? " stree-chevron--collapsed" : ""}`}>▾</span>
+            <span className="stree-toggle__count">{catTopics.length + childCategories.length}</span>
+          </button>
+          <span className="stree-row__icon">📂</span>
+          <div className="stree-row__body">
+            <span className="stree-row__name">{cat.name}</span>
+            <span className="stree-row__slug">{cat.slug}</span>
+            {depth > 0 && <span className="stree-tag stree-tag--child">子栏目</span>}
+            {cat.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+            {cat.show_on_home && <span className="stree-tag stree-tag--featured">首页</span>}
+          </div>
+          <div className="stree-row__actions">
+            <button
+              type="button"
+              className="stree-action stree-action--add"
+              onClick={() => { setCategoryForm({ ...emptyCategoryForm, channel_id: cat.channel_id, parent_id: cat.id }); setStructurePanel("category"); }}
+            >
+              + 子栏目
+            </button>
+            <button type="button" className="stree-action stree-action--add"
+              onClick={() => { setTopicForm({ ...emptyTopicForm, category_id: cat.id }); setStructurePanel("topic"); }}>+ 专题</button>
+            <button type="button" className="stree-action"
+              onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, parent_id: cat.parent_id || "", name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, show_on_home: cat.show_on_home ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
+            <button type="button" className="stree-action stree-action--del"
+              onClick={() => handleDeleteStructure("category", cat.id)}>删除</button>
+          </div>
+        </div>
+
+        {!catCollapsed && catTopics.length === 0 && childCategories.length === 0 && (
+          <div className="stree-hint stree-hint--topic">暂无专题或子栏目</div>
+        )}
+
+        {!catCollapsed && childCategories.map((child, index) =>
+          renderCategoryBranch(child, index === childCategories.length - 1 && catTopics.length === 0, depth + 1)
+        )}
+
+        {!catCollapsed && catTopics.map((topic, topicIdx) => {
+          const isLastTopic = topicIdx === catTopics.length - 1;
+          return (
+            <div className={`stree-row stree-row--topic${isLastTopic ? " stree-row--last" : ""}`} key={topic.id}>
+              <span className="stree-row__icon">📄</span>
+              <div className="stree-row__body">
+                <span className="stree-row__name">{topic.name}</span>
+                <span className="stree-row__slug">{topic.slug}</span>
+                {topic.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
+                {topic.featured && <span className="stree-tag stree-tag--featured">精选</span>}
+                {topic.show_on_home && <span className="stree-tag stree-tag--featured">首页</span>}
+              </div>
+              <div className="stree-row__actions">
+                <button type="button" className="stree-action"
+                  onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, download_url: topic.download_url || "", sort_order: topic.sort, featured: topic.featured ?? false, show_on_home: topic.show_on_home ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
+                <button type="button" className="stree-action stree-action--del"
+                  onClick={() => handleDeleteStructure("topic", topic.id)}>删除</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }, [categoriesByParent, collapsedCategories, topics]);
 
   function notify(type: "ok" | "err", text: string) {
     setMessage({ type, text });
@@ -385,7 +483,7 @@ export function AdminResourcesClient({
       publish_status: resource.publish_status,
       published_at: resource.published_at.slice(0, 16),
       meta: Object.fromEntries(
-        Object.entries(resource.meta || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join("、") : value])
+        Object.entries(resource.meta || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join("、") : String(value)])
       ),
     });
     setTab("form");
@@ -717,6 +815,12 @@ export function AdminResourcesClient({
                         {STATUS_LABELS[resource.publish_status]}
                       </span>
                       <span className="admin-res-cat">{resource.category}</span>
+                      <span className="admin-res-time">
+                        录入 {new Date(resource.created_at || resource.updated_at).toLocaleString("zh-CN")}
+                      </span>
+                      <span className="admin-res-time">
+                        更新 {new Date(resource.updated_at).toLocaleString("zh-CN")}
+                      </span>
                     </div>
                     <h3 className="admin-res-row__title">{resource.title}</h3>
                     <p className="admin-res-row__summary">{resource.summary}</p>
@@ -1030,7 +1134,8 @@ export function AdminResourcesClient({
                 {(() => {
                   const ch = channels.find((c) => c.id === selectedChannelId);
                   if (!ch) return null;
-                  const chCats = categories.filter((c) => c.channel_id === ch.id);
+                  const chCats = (categoriesByChannel.get(ch.id) || []).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
+                  const rootCats = chCats.filter((c) => !c.parent_id);
                   return (
                     <>
                       {/* 频道操作栏 */}
@@ -1044,7 +1149,7 @@ export function AdminResourcesClient({
                         </div>
                         <div className="stree-row__actions stree-row__actions--always">
                           <button type="button" className="stree-action stree-action--add"
-                            onClick={() => { setCategoryForm({ ...emptyCategoryForm, channel_id: ch.id }); setStructurePanel("category"); }}>+ 栏目</button>
+                            onClick={() => { setCategoryForm({ ...emptyCategoryForm, channel_id: ch.id, parent_id: "" }); setStructurePanel("category"); }}>+ 栏目</button>
                           <button type="button" className="stree-action"
                             onClick={() => { setChannelForm({ id: ch.id, name: ch.name, slug: ch.slug, description: ch.description, sort_order: ch.sort, featured: ch.featured ?? false, status: ch.status }); setStructurePanel("channel"); }}>编辑</button>
                           <button type="button" className="stree-action stree-action--del"
@@ -1053,63 +1158,10 @@ export function AdminResourcesClient({
                       </div>
 
                       {/* 栏目列表 */}
-                      {chCats.length === 0 && (
+                      {rootCats.length === 0 && (
                         <div className="stree-hint">暂无栏目，点击「+ 栏目」添加</div>
                       )}
-                      {chCats.map((cat, catIdx) => {
-                        const catTopics = topics.filter((t) => t.category_id === cat.id);
-                        const isLastCat = catIdx === chCats.length - 1;
-                        const catCollapsed = collapsedCategories.has(cat.id);
-                        return (
-                          <div className={`stree-cat-block${isLastCat ? " stree-cat-block--last" : ""}`} key={cat.id}>
-                            <div className="stree-row stree-row--category">
-                              <button type="button" className="stree-toggle stree-toggle--sm" onClick={() => toggleCategory(cat.id)}>
-                                <span className={`stree-chevron${catCollapsed ? " stree-chevron--collapsed" : ""}`}>▾</span>
-                                <span className="stree-toggle__count">{catTopics.length}</span>
-                              </button>
-                              <span className="stree-row__icon">📂</span>
-                              <div className="stree-row__body">
-                                <span className="stree-row__name">{cat.name}</span>
-                                <span className="stree-row__slug">{cat.slug}</span>
-                                {cat.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
-                                {cat.show_on_home && <span className="stree-tag stree-tag--featured">首页</span>}
-                              </div>
-                              <div className="stree-row__actions">
-                                <button type="button" className="stree-action stree-action--add"
-                                  onClick={() => { setTopicForm({ ...emptyTopicForm, category_id: cat.id }); setStructurePanel("topic"); }}>+ 专题</button>
-                                <button type="button" className="stree-action"
-                                  onClick={() => { setCategoryForm({ id: cat.id, channel_id: cat.channel_id, name: cat.name, slug: cat.slug, description: cat.description, sort_order: cat.sort, featured: cat.featured ?? false, show_on_home: cat.show_on_home ?? false, status: cat.status }); setStructurePanel("category"); }}>编辑</button>
-                                <button type="button" className="stree-action stree-action--del"
-                                  onClick={() => handleDeleteStructure("category", cat.id)}>删除</button>
-                              </div>
-                            </div>
-
-                            {!catCollapsed && catTopics.length === 0 && (
-                              <div className="stree-hint stree-hint--topic">暂无专题</div>
-                            )}
-                            {!catCollapsed && catTopics.map((topic, topicIdx) => {
-                              const isLastTopic = topicIdx === catTopics.length - 1;
-                              return (
-                                <div className={`stree-row stree-row--topic${isLastTopic ? " stree-row--last" : ""}`} key={topic.id}>
-                                  <span className="stree-row__icon">📄</span>
-                                  <div className="stree-row__body">
-                                    <span className="stree-row__name">{topic.name}</span>
-                                    <span className="stree-row__slug">{topic.slug}</span>
-                                    {topic.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
-                                    {topic.featured && <span className="stree-tag stree-tag--featured">精选</span>}
-                                  </div>
-                                  <div className="stree-row__actions">
-                                    <button type="button" className="stree-action"
-                                      onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, download_url: topic.download_url || "", sort_order: topic.sort, featured: topic.featured ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
-                                    <button type="button" className="stree-action stree-action--del"
-                                      onClick={() => handleDeleteStructure("topic", topic.id)}>删除</button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
+                      {rootCats.map((cat, catIdx) => renderCategoryBranch(cat, catIdx === rootCats.length - 1))}
                     </>
                   );
                 })()}
@@ -1242,9 +1294,17 @@ export function AdminResourcesClient({
                       )}
                       <form onSubmit={async (e) => { e.preventDefault(); await handleSaveStructure("category", categoryForm); setCategoryForm(emptyCategoryForm); setStructurePanel(null); }}>
                         <div className="adm-field"><label>所属频道 *</label>
-                          <select required value={categoryForm.channel_id} onChange={(e) => setCategoryForm((c) => ({ ...c, channel_id: e.target.value }))}>
+                          <select required value={categoryForm.channel_id} onChange={(e) => setCategoryForm((c) => ({ ...c, channel_id: e.target.value, parent_id: "" }))}>
                             <option value="">请选择频道</option>
                             {channels.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+                          </select></div>
+                        <div className="adm-field"><label>父栏目</label>
+                          <select value={categoryForm.parent_id} onChange={(e) => setCategoryForm((c) => ({ ...c, parent_id: e.target.value }))}>
+                            <option value="">无父栏目（顶级栏目）</option>
+                            {(categoriesByChannel.get(categoryForm.channel_id) || [])
+                              .filter((cat) => !categoryForm.id || cat.id !== categoryForm.id)
+                              .filter((cat) => !cat.parent_id)
+                              .map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                           </select></div>
                         <div className="adm-field"><label>栏目名称 *</label>
                           <input required value={categoryForm.name} onChange={(e) => setCategoryForm((c) => ({ ...c, name: e.target.value }))} placeholder="如：考研资料" /></div>
@@ -1335,6 +1395,10 @@ export function AdminResourcesClient({
                         <div className="adm-field adm-field--check"><label>
                           <input type="checkbox" checked={topicForm.featured} onChange={(e) => setTopicForm((c) => ({ ...c, featured: e.target.checked }))} />
                           设为精选专题
+                        </label></div>
+                        <div className="adm-field adm-field--check"><label>
+                          <input type="checkbox" checked={topicForm.show_on_home} onChange={(e) => setTopicForm((c) => ({ ...c, show_on_home: e.target.checked }))} />
+                          显示在首页栏目展示区
                         </label></div>
                         <div className="admin-form-actions">
                           <button className="adm-btn adm-btn--primary" type="submit">保存</button>

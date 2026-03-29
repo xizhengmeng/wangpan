@@ -46,6 +46,7 @@ npm run sync:data
 - 栏目 `categories`
 - 专题 `topics`
 - 资源 `resources`
+- 资源明细 `resource_items`
 - 标签 `resource_tags`
 - 专题关联 `resource_topics`
 - 事件 `track_events`
@@ -69,7 +70,26 @@ npm run dev
 - `categories`
 - `topics`
 - `resources`
+- `resource_items`
+- `resource_item_tags`
 - `resource_tags`
 - `resource_topics`
 - `track_events`
 - `feedback`
+
+## K12 资料库迁移
+
+如果要把外部 K12 资料库按“资料包 + 明细文件”的方式导入当前网盘站，可先阅读：
+
+- [K12 资料库迁移设计](/Users/k12/Work/Code/k12/nextjs/wangpan/docs/k12-group-migration.md)
+
+预览迁移样本：
+
+```bash
+npm run import:k12-groups -- --limit=50
+```
+
+说明：
+
+- 默认只做 dry-run，并输出 `data/k12-group-migration-preview.json`
+- 确认频道、栏目映射无误后，再加 `--execute`

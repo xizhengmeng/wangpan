@@ -128,8 +128,8 @@ try {
 
   for (const topic of structure.topics) {
     await connection.execute(
-      `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, show_on_home, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          category_id = VALUES(category_id),
          name = VALUES(name),
@@ -138,8 +138,9 @@ try {
          download_url = VALUES(download_url),
          sort_order = VALUES(sort_order),
          featured = VALUES(featured),
+         show_on_home = VALUES(show_on_home),
          status = VALUES(status)`,
-      [topic.id, topic.category_id, topic.name, topic.slug, topic.summary, topic.download_url || null, topic.sort, topic.featured ? 1 : 0, topic.status]
+      [topic.id, topic.category_id, topic.name, topic.slug, topic.summary, topic.download_url || null, topic.sort, topic.featured ? 1 : 0, topic.show_on_home ? 1 : 0, topic.status]
     );
   }
 

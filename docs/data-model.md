@@ -55,8 +55,32 @@
 - `publish_status`
 - `published_at`
 - `updated_at`
+- `meta`
 
-## 5. 事件
+## 5. 资源明细
+
+字段：
+
+- `id`
+- `parent_resource_id`
+- `source_resource_id`
+- `title`
+- `slug`
+- `description`
+- `file_type`
+- `file_ext`
+- `sort_order`
+- `grade`
+- `subject`
+- `resource_type`
+- `edition`
+- `region`
+- `year`
+- `has_answer`
+- `source_pan_type`
+- `source_pan_url`
+
+## 6. 事件
 
 字段：
 
@@ -73,7 +97,7 @@
 - `device`
 - `ua`
 
-## 6. 反馈
+## 7. 反馈
 
 字段：
 
@@ -86,9 +110,10 @@
 - `created_at`
 - `resolved`
 
-## 7. 说明
+## 8. 说明
 
 - 运行时数据统一存储在 MySQL
 - 表结构见 [sql/schema.sql](/Users/k12/Work/Code/k12/nextjs/wangpan/sql/schema.sql)
 - 初始化和迁移说明见 [docs/mysql-setup.md](/Users/k12/Work/Code/k12/nextjs/wangpan/docs/mysql-setup.md)
+- K12 组资源迁移设计见 [docs/k12-group-migration.md](/Users/k12/Work/Code/k12/nextjs/wangpan/docs/k12-group-migration.md)
 - `data/` 目录中的 JSON / JSONL 文件仅作为初始化迁移源，不再作为线上读写数据源
