@@ -28,6 +28,7 @@ interface HomeCategoryShowcaseItem {
     slug: string;
     summary: string;
     featured?: boolean;
+    show_on_home?: boolean;
     resources: Array<{
       id: string;
       title: string;
@@ -524,8 +525,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   }
 
   for (const topic of structure.topics
-    .filter((item) => item.status === "active")
-    .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"))) {
+    .filter((item) => item.status === "active" && item.show_on_home)
+    .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"))) {
     const list = topicsByCategoryId.get(topic.category_id) || [];
     list.push({
       id: topic.id,
@@ -533,6 +534,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       slug: topic.slug,
       summary: topic.summary,
       featured: topic.featured,
+      show_on_home: topic.show_on_home,
       resources: (resourcesByTopicId.get(topic.id) || []).slice(0, 8)
     });
     topicsByCategoryId.set(topic.category_id, list);

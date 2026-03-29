@@ -2,6 +2,8 @@ import DefaultTopicLayout from "./DefaultTopicLayout";
 import GaokaoZhentiLayout from "./GaokaoZhentiLayout";
 import MiddleSchoolZoneLayout from "./MiddleSchoolZoneLayout";
 import ZhongkaoZhentiLayout from "./ZhongkaoZhentiLayout";
+import PrimarySchoolZoneLayout from "./PrimarySchoolZoneLayout";
+import HighSchoolZoneLayout from "./HighSchoolZoneLayout";
 import type { TopicLayoutProps } from "./types";
 
 export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
@@ -13,6 +15,8 @@ export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
 const registry: Partial<Record<string, TopicLayoutComponent>> = {
   gaokaozhenti: GaokaoZhentiLayout,
   "middle-school-zone": MiddleSchoolZoneLayout,
+  "primary-school-zone": PrimarySchoolZoneLayout,
+  "high-school-zone": HighSchoolZoneLayout,
   zhongkaozhenti: ZhongkaoZhentiLayout,
 };
 

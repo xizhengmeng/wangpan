@@ -46,7 +46,9 @@ CREATE TABLE IF NOT EXISTS topics (
   download_url VARCHAR(1000) NULL,
   sort_order INT NOT NULL DEFAULT 0,
   featured TINYINT(1) NOT NULL DEFAULT 0,
+  show_on_home TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('active','hidden') NOT NULL DEFAULT 'active',
+  field_schema JSON NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_topics_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
@@ -66,6 +68,7 @@ CREATE TABLE IF NOT EXISTS resources (
   publish_status ENUM('draft','published','offline') NOT NULL DEFAULT 'draft',
   published_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
+  meta JSON NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_resources_channel FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE SET NULL,
   CONSTRAINT fk_resources_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
@@ -91,6 +94,43 @@ CREATE TABLE IF NOT EXISTS resource_topics (
   CONSTRAINT fk_resource_topics_resource FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE,
   CONSTRAINT fk_resource_topics_topic FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE,
   INDEX idx_resource_topics_topic (topic_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resource_items (
+  id VARCHAR(64) NOT NULL PRIMARY KEY,
+  parent_resource_id VARCHAR(64) NOT NULL,
+  source_resource_id VARCHAR(64) NULL,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NULL,
+  description TEXT NULL,
+  file_type VARCHAR(40) NULL,
+  file_ext VARCHAR(20) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  grade INT NULL,
+  subject VARCHAR(50) NULL,
+  resource_type VARCHAR(50) NULL,
+  edition VARCHAR(50) NULL,
+  region VARCHAR(50) NULL,
+  year INT NULL,
+  has_answer TINYINT(1) NOT NULL DEFAULT 0,
+  source_pan_type VARCHAR(20) NULL,
+  source_pan_url TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_resource_items_parent FOREIGN KEY (parent_resource_id) REFERENCES resources(id) ON DELETE CASCADE,
+  INDEX idx_resource_items_parent (parent_resource_id),
+  INDEX idx_resource_items_grade_subject (grade, subject),
+  INDEX idx_resource_items_type (resource_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resource_item_tags (
+  resource_item_id VARCHAR(64) NOT NULL,
+  tag_name VARCHAR(120) NOT NULL,
+  tag_slug VARCHAR(160) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (resource_item_id, tag_slug),
+  CONSTRAINT fk_resource_item_tags_item FOREIGN KEY (resource_item_id) REFERENCES resource_items(id) ON DELETE CASCADE,
+  INDEX idx_resource_item_tags_slug (tag_slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS track_events (

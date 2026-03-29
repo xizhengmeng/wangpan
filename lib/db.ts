@@ -58,6 +58,7 @@ const requiredColumns: Record<string, Record<string, string>> = {
     download_url: "VARCHAR(1000) NULL",
     sort_order: "INT NOT NULL DEFAULT 0",
     featured: "TINYINT(1) NOT NULL DEFAULT 0",
+    show_on_home: "TINYINT(1) NOT NULL DEFAULT 0",
     status: "ENUM('active','hidden') NOT NULL DEFAULT 'active'",
     created_at: "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
     updated_at: "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
@@ -296,6 +297,7 @@ async function seedStructureIfEmpty() {
       description: string;
       sort: number;
       featured?: boolean;
+      show_on_home?: boolean;
       status: "active" | "hidden";
     }>;
     topics?: Array<{
@@ -307,6 +309,7 @@ async function seedStructureIfEmpty() {
       download_url?: string;
       sort: number;
       featured?: boolean;
+      show_on_home?: boolean;
       status: "active" | "hidden";
     }>;
   }>(structureFile, {});
@@ -367,8 +370,8 @@ async function seedStructureIfEmpty() {
 
     for (const topic of structure.topics || []) {
       await connection.execute(
-        `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, show_on_home, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           topic.id,
           topic.category_id,
@@ -378,6 +381,7 @@ async function seedStructureIfEmpty() {
           topic.download_url || null,
           topic.sort,
           topic.featured ? 1 : 0,
+          topic.show_on_home ? 1 : 0,
           topic.status,
         ]
       );

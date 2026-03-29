@@ -10,7 +10,7 @@ import { formatDate, slugify } from "@/lib/format";
 import { absoluteUrl } from "@/lib/site";
 import { getGaokaoMetaString } from "@/lib/gaokao";
 import { getContentStructure, getPublishedResources, getResolvedDownloadUrlForResource, getResourceBySlug } from "@/lib/store";
-import { Resource } from "@/lib/types";
+import { Resource, ResourceItem } from "@/lib/types";
 import { getZhongkaoCity, getZhongkaoMetaString } from "@/lib/zhongkao";
 
 interface ResourcePageProps {
@@ -30,14 +30,42 @@ const META_LABELS: Record<string, string> = {
   province: "省份", volume: "卷册", edition: "版本", publisher: "出版社",
   difficulty: "难度", type: "类型", semester: "学期", course: "课程",
   city: "城市", paper_variant: "卷型", paper_version: "卷别", content_kinds: "内容类型",
-  file_count: "文件数", file_formats: "文件格式", has_answer: "包含答案", has_analysis: "包含解析", has_audio: "包含音频",
+  file_count: "文件数", item_count: "资料数", file_formats: "文件格式", has_answer: "包含答案", has_analysis: "包含解析", has_audio: "包含音频",
+  subjects: "科目覆盖", editions: "教材版本", years: "年份", 
 };
 function metaLabel(key: string) {
   return META_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function formatMetaValue(value: string | string[]) {
-  return Array.isArray(value) ? value.filter(Boolean).join("、") : value;
+function formatMetaValue(value: string | number | boolean | Array<string | number | boolean>) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join("、");
+  }
+  if (typeof value === "boolean") {
+    return value ? "是" : "否";
+  }
+  return String(value);
+}
+
+function getVisibleMetaEntries(resource: Resource) {
+  if (!resource.meta) {
+    return [];
+  }
+
+  return Object.entries(resource.meta)
+    .filter(([key, value]) => Boolean(value) && !key.startsWith("source_") && key !== "tags")
+    .map(([key, value]) => [key, formatMetaValue(value)] as const);
+}
+
+function getResourceItemMeta(item: ResourceItem) {
+  return [item.subject, item.edition, item.year ? `${item.year}` : null, item.has_answer ? "含答案" : null]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function getMetaStringArray(resource: Resource, key: string) {
+  const value = resource.meta?.[key];
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
 function getExamHeadline(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhenti") {
@@ -45,8 +73,8 @@ function getExamHeadline(resource: Resource, examSlug: "gaokaozhenti" | "zhongka
   const subject = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "subject") : getGaokaoMetaString(resource, "subject");
   const region = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "region") : getGaokaoMetaString(resource, "region");
   const city = examSlug === "zhongkaozhenti" ? getZhongkaoCity(resource) : null;
-  const kinds = resource.meta?.content_kinds;
-  const kindLabel = Array.isArray(kinds) && kinds.length > 0 ? kinds.join("、") : null;
+  const kinds = getMetaStringArray(resource, "content_kinds");
+  const kindLabel = kinds.length > 0 ? kinds.join("、") : null;
   const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
   const area = [region, city].filter(Boolean).join("");
   const base = [year ? `${year}年` : null, area, examName, subject].filter(Boolean).join("");
@@ -57,7 +85,7 @@ function getExamHeadline(resource: Resource, examSlug: "gaokaozhenti" | "zhongka
 }
 
 function getExamScenarios(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhenti") {
-  const kinds = Array.isArray(resource.meta?.content_kinds) ? resource.meta?.content_kinds : [];
+  const kinds = getMetaStringArray(resource, "content_kinds");
   const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
   const scenarios = new Set<string>([
     `用于${examName}历年真题训练与阶段复习`,
@@ -98,7 +126,7 @@ function getExamFaqs(resource: Resource, examSlug: "gaokaozhenti" | "zhongkaozhe
   const region = examSlug === "zhongkaozhenti" ? getZhongkaoMetaString(resource, "region") : getGaokaoMetaString(resource, "region");
   const city = examSlug === "zhongkaozhenti" ? getZhongkaoCity(resource) : null;
   const examName = examSlug === "zhongkaozhenti" ? "中考" : "高考";
-  const kinds = Array.isArray(resource.meta?.content_kinds) ? resource.meta.content_kinds : [];
+  const kinds = getMetaStringArray(resource, "content_kinds");
   const area = [region, city].filter(Boolean).join("");
 
   return [
@@ -179,8 +207,8 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
   if (!resource) return null;
 
   const description = resource.summary;
-  const metaEntries = resource.meta ? Object.entries(resource.meta).filter(([, v]) => v) : [];
-  const metaDisplayEntries = metaEntries.map(([key, value]) => [key, formatMetaValue(value)] as const);
+  const metaDisplayEntries = getVisibleMetaEntries(resource);
+  const resourceItems = resource.items || [];
   const isExamResource = Boolean(examTopic);
   const examIntro = examTopic ? getExamHeadline(resource, examTopic.slug) : null;
   const examScenarios = examTopic ? getExamScenarios(resource, examTopic.slug) : [];
@@ -297,6 +325,32 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
                   <ul className="resource-bullet-list">
                     {examScenarios.map((scenario) => (
                       <li key={scenario}>{scenario}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {resourceItems.length > 0 && (
+                <>
+                  <h2 className="resource-section-title">包含内容</h2>
+                  <div className="resource-items-summary">
+                    当前资料包共整理 <strong>{resourceItems.length}</strong> 份内容，可先浏览清单再决定是否转存到夸克网盘。
+                  </div>
+                  <ul className="resource-item-list">
+                    {resourceItems.map((item) => (
+                      <li className="resource-item-row" key={item.id}>
+                        <div className="resource-item-row__body">
+                          <strong className="resource-item-row__title">{item.title}</strong>
+                          {(item.description || getResourceItemMeta(item)) && (
+                            <p className="resource-item-row__meta">
+                              {item.description || getResourceItemMeta(item)}
+                            </p>
+                          )}
+                        </div>
+                        <span className="resource-item-row__badge">
+                          {item.file_ext ? item.file_ext.toUpperCase() : "资料"}
+                        </span>
+                      </li>
                     ))}
                   </ul>
                 </>

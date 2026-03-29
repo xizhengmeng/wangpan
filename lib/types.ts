@@ -7,6 +7,29 @@ export interface TopicFieldSchema {
   options?: string[];
 }
 
+export type ResourceMetaValue = string | number | boolean | Array<string | number | boolean>;
+
+export interface ResourceItem {
+  id: string;
+  parent_resource_id: string;
+  source_resource_id?: string;
+  title: string;
+  slug?: string;
+  description?: string | null;
+  file_type?: string | null;
+  file_ext?: string | null;
+  sort_order: number;
+  grade?: number | null;
+  subject?: string | null;
+  resource_type?: string | null;
+  edition?: string | null;
+  region?: string | null;
+  year?: number | null;
+  has_answer?: boolean;
+  source_pan_type?: string | null;
+  source_pan_url?: string | null;
+}
+
 export interface Resource {
   id: string;
   title: string;
@@ -23,7 +46,9 @@ export interface Resource {
   publish_status: PublishStatus;
   published_at: string;
   updated_at: string;
-  meta?: Record<string, string | string[]>;
+  created_at?: string;
+  meta?: Record<string, ResourceMetaValue>;
+  items?: ResourceItem[];
 }
 
 export type TrackEventName =
@@ -115,6 +140,7 @@ export interface TopicNode {
   download_url?: string;
   sort: number;
   featured?: boolean;
+  show_on_home?: boolean;
   status: "active" | "hidden";
   field_schema?: TopicFieldSchema[];
 }

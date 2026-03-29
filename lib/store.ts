@@ -15,6 +15,7 @@ import {
   FeedbackReason,
   PublishStatus,
   Resource,
+  ResourceItem,
   SearchResponse,
   TrackEvent,
   TopicNode,
@@ -34,6 +35,7 @@ type ResourceRow = RowDataPacket & {
   publish_status: PublishStatus;
   published_at: string;
   updated_at: string;
+  created_at: string;
   meta: string | null;
 };
 
@@ -46,6 +48,27 @@ type TagRow = RowDataPacket & {
 type ResourceTopicRow = RowDataPacket & {
   resource_id: string;
   topic_id: string;
+};
+
+type ResourceItemRow = RowDataPacket & {
+  id: string;
+  parent_resource_id: string;
+  source_resource_id: string | null;
+  title: string;
+  slug: string | null;
+  description: string | null;
+  file_type: string | null;
+  file_ext: string | null;
+  sort_order: number;
+  grade: number | null;
+  subject: string | null;
+  resource_type: string | null;
+  edition: string | null;
+  region: string | null;
+  year: number | null;
+  has_answer: number;
+  source_pan_type: string | null;
+  source_pan_url: string | null;
 };
 
 type SiteProfileRow = RowDataPacket & {
@@ -91,6 +114,7 @@ type TopicRow = RowDataPacket & {
   download_url: string | null;
   sort_order: number;
   featured: number;
+  show_on_home: number;
   status: "active" | "hidden";
   field_schema: string | null;
 };
@@ -169,7 +193,8 @@ function parseJsonArray(value: string | null | undefined): string[] {
 function mapResourceRow(
   row: ResourceRow,
   tagsByResourceId: Map<string, string[]>,
-  topicIdsByResourceId: Map<string, string[]>
+  topicIdsByResourceId: Map<string, string[]>,
+  itemsByResourceId?: Map<string, ResourceItem[]>
 ): Resource {
   const resource: Resource = {
     id: row.id,
@@ -183,6 +208,7 @@ function mapResourceRow(
     publish_status: row.publish_status,
     published_at: toIsoString(row.published_at),
     updated_at: toIsoString(row.updated_at),
+    created_at: toIsoString(row.created_at),
   };
 
   if (row.quark_url) {
@@ -207,7 +233,34 @@ function mapResourceRow(
     } catch { /* ignore */ }
   }
 
+  if (itemsByResourceId?.has(row.id)) {
+    resource.items = itemsByResourceId.get(row.id) || [];
+  }
+
   return resource;
+}
+
+function mapResourceItemRow(row: ResourceItemRow): ResourceItem {
+  return {
+    id: row.id,
+    parent_resource_id: row.parent_resource_id,
+    source_resource_id: row.source_resource_id || undefined,
+    title: row.title,
+    slug: row.slug || undefined,
+    description: row.description,
+    file_type: row.file_type,
+    file_ext: row.file_ext,
+    sort_order: row.sort_order,
+    grade: row.grade,
+    subject: row.subject,
+    resource_type: row.resource_type,
+    edition: row.edition,
+    region: row.region,
+    year: row.year,
+    has_answer: Boolean(row.has_answer),
+    source_pan_type: row.source_pan_type,
+    source_pan_url: row.source_pan_url,
+  };
 }
 
 async function loadTagsForResourceIds(resourceIds: string[]) {
@@ -258,14 +311,57 @@ async function loadTopicIdsForResourceIds(resourceIds: string[]) {
   return topicIdsByResourceId;
 }
 
-async function hydrateResources(rows: ResourceRow[]) {
+async function loadItemsForResourceIds(resourceIds: string[]) {
+  const itemsByResourceId = new Map<string, ResourceItem[]>();
+  if (resourceIds.length === 0) {
+    return itemsByResourceId;
+  }
+
+  const placeholders = resourceIds.map(() => "?").join(", ");
+  const rows = await queryRows<ResourceItemRow>(
+    `SELECT
+      id,
+      parent_resource_id,
+      source_resource_id,
+      title,
+      slug,
+      description,
+      file_type,
+      file_ext,
+      sort_order,
+      grade,
+      subject,
+      resource_type,
+      edition,
+      region,
+      year,
+      has_answer,
+      source_pan_type,
+      source_pan_url
+     FROM resource_items
+     WHERE parent_resource_id IN (${placeholders})
+     ORDER BY parent_resource_id ASC, sort_order ASC, title ASC`,
+    resourceIds
+  );
+
+  for (const row of rows) {
+    const list = itemsByResourceId.get(row.parent_resource_id) || [];
+    list.push(mapResourceItemRow(row));
+    itemsByResourceId.set(row.parent_resource_id, list);
+  }
+
+  return itemsByResourceId;
+}
+
+async function hydrateResources(rows: ResourceRow[], options?: { includeItems?: boolean }) {
   const resourceIds = rows.map((row) => row.id);
-  const [tagsByResourceId, topicIdsByResourceId] = await Promise.all([
+  const [tagsByResourceId, topicIdsByResourceId, itemsByResourceId] = await Promise.all([
     loadTagsForResourceIds(resourceIds),
     loadTopicIdsForResourceIds(resourceIds),
+    options?.includeItems ? loadItemsForResourceIds(resourceIds) : Promise.resolve(undefined),
   ]);
 
-  return rows.map((row) => mapResourceRow(row, tagsByResourceId, topicIdsByResourceId));
+  return rows.map((row) => mapResourceRow(row, tagsByResourceId, topicIdsByResourceId, itemsByResourceId));
 }
 
 async function getResourceRows(whereSql = "", params: unknown[] = []) {
@@ -284,6 +380,7 @@ async function getResourceRows(whereSql = "", params: unknown[] = []) {
       publish_status,
       published_at,
       updated_at,
+      created_at,
       meta
      FROM resources
      ${whereSql}
@@ -308,6 +405,7 @@ async function getSingleResource(whereSql: string, params: unknown[]) {
       publish_status,
       published_at,
       updated_at,
+      created_at,
       meta
      FROM resources
      ${whereSql}
@@ -319,7 +417,7 @@ async function getSingleResource(whereSql: string, params: unknown[]) {
     return null;
   }
 
-  const resources = await hydrateResources(rows);
+  const resources = await hydrateResources(rows, { includeItems: true });
   return resources[0] || null;
 }
 
@@ -713,9 +811,35 @@ export async function getResourcesByCategorySlug(slug: string) {
   const structure = await getContentStructure();
   const category = structure.categories.find((item) => item.slug === slug && item.status === "active");
   const publishedResources = await getPublishedResources();
+  const categoryAliases = new Map<string, string[]>([
+    ["middle-school", ["初中资料", "中考专区"]],
+    ["primary-school", ["小学资料", "小升初/六升七", "打印资料"]],
+    ["high-school", ["高中资料"]],
+  ]);
 
   if (category) {
-    return publishedResources.filter((resource) => resource.category_id === category.id);
+    const descendantIds = new Set<string>([category.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const item of structure.categories) {
+        if (item.parent_id && descendantIds.has(item.parent_id) && !descendantIds.has(item.id)) {
+          descendantIds.add(item.id);
+          changed = true;
+        }
+      }
+    }
+
+    const aliasSet = new Set(categoryAliases.get(slug) || []);
+    return publishedResources.filter((resource) => {
+      if (resource.category_id && descendantIds.has(resource.category_id)) {
+        return true;
+      }
+      if (aliasSet.has(resource.category)) {
+        return true;
+      }
+      return resource.tags.some((tag) => aliasSet.has(tag));
+    });
   }
 
   return publishedResources.filter((resource) => slugify(resource.category) === slug);
@@ -757,9 +881,9 @@ export async function getContentStructure(): Promise<ContentStructure> {
        ORDER BY show_on_home DESC, channel_id ASC, featured DESC, sort_order ASC, name ASC`
     ),
     queryRows<TopicRow>(
-      `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema
+      `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, show_on_home, status, field_schema
        FROM topics
-       ORDER BY category_id ASC, featured DESC, sort_order ASC, name ASC`
+       ORDER BY category_id ASC, show_on_home DESC, featured DESC, sort_order ASC, name ASC`
     ),
   ]);
 
@@ -806,6 +930,7 @@ export async function getContentStructure(): Promise<ContentStructure> {
       ...(row.download_url ? { download_url: row.download_url } : {}),
       sort: row.sort_order,
       featured: Boolean(row.featured),
+      show_on_home: Boolean(row.show_on_home),
       status: row.status,
       ...(row.field_schema ? { field_schema: typeof row.field_schema === "string" ? JSON.parse(row.field_schema) : row.field_schema } : {}),
     })),
@@ -855,7 +980,7 @@ export async function getFeaturedTopics() {
 
 export async function getTopicBySlug(slug: string) {
   const rows = await queryRows<TopicRow>(
-    `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema
+    `SELECT id, category_id, name, slug, summary, download_url, sort_order, featured, show_on_home, status, field_schema
      FROM topics WHERE slug = ? AND status = 'active' LIMIT 1`,
     [slug]
   );
@@ -873,6 +998,7 @@ export async function getTopicBySlug(slug: string) {
     ...(row.download_url ? { download_url: row.download_url } : {}),
     sort: row.sort_order,
     featured: Boolean(row.featured),
+    show_on_home: Boolean(row.show_on_home),
     status: row.status,
     ...(row.field_schema ? { field_schema: typeof row.field_schema === "string" ? JSON.parse(row.field_schema) : row.field_schema } : {}),
   } as TopicNode;
@@ -1085,18 +1211,20 @@ export async function saveTopic(input: {
   download_url?: string;
   sort_order?: number;
   featured?: boolean;
+  show_on_home?: boolean;
   status?: "active" | "hidden";
   field_schema?: unknown;
 }): Promise<TopicNode> {
   const id = input.id || `topic_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
   const sort_order = input.sort_order ?? 0;
   const featured = input.featured ? 1 : 0;
+  const show_on_home = input.show_on_home ? 1 : 0;
   const status = input.status ?? "active";
   const fieldSchemaJson = input.field_schema ? JSON.stringify(input.field_schema) : null;
 
   await execute(
-    `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, status, field_schema)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO topics (id, category_id, name, slug, summary, download_url, sort_order, featured, show_on_home, status, field_schema)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        category_id = VALUES(category_id),
        name = VALUES(name),
@@ -1105,9 +1233,10 @@ export async function saveTopic(input: {
        download_url = VALUES(download_url),
        sort_order = VALUES(sort_order),
        featured = VALUES(featured),
+       show_on_home = VALUES(show_on_home),
        status = VALUES(status),
        field_schema = VALUES(field_schema)`,
-    [id, input.category_id, input.name, input.slug, input.summary || "", input.download_url || null, sort_order, featured, status, fieldSchemaJson]
+    [id, input.category_id, input.name, input.slug, input.summary || "", input.download_url || null, sort_order, featured, show_on_home, status, fieldSchemaJson]
   );
   return {
     id,
@@ -1118,6 +1247,7 @@ export async function saveTopic(input: {
     ...(input.download_url ? { download_url: input.download_url } : {}),
     sort: sort_order,
     featured: Boolean(featured),
+    show_on_home: Boolean(show_on_home),
     status,
   };
 }

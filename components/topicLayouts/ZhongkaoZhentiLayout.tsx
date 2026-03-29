@@ -142,106 +142,251 @@ export default function ZhongkaoZhentiLayout({
             <span>{topic.name}</span>
           </nav>
 
-          <section className="page-hero panel">
-            <span className="eyebrow">资料专题</span>
-            <h1 className="page-title">{topic.name}</h1>
-            <p className="page-copy">{topic.summary}</p>
-            <div className="chip-row" style={{ marginTop: 14 }}>
-              <span className="chip">{resources.length} 条资源</span>
-              <Link
-                className="chip"
-                href={categorySlug ? `/category/${categorySlug}` : `/search?q=${encodeURIComponent(categoryName)}`}
-              >
-                {categoryName}
-              </Link>
-            </div>
-          </section>
+          <div className="elegant-zone-container">
 
-          <div className="tf-panel">
-            {subjects.length > 0 && (
-              <div className="tf-row">
-                <span className="tf-label">科目</span>
-                <div className="tf-chips">
-                  {subjects.map((subject) => (
-                    <button
-                      key={subject}
-                      className={`tf-chip${selSubject === subject ? " tf-chip--active" : ""}`}
-                      onClick={() => toggle(selSubject, subject, setSubject)}
-                    >
-                      {subject}
-                    </button>
-                  ))}
+            <style jsx>{`
+              .elegant-zone-container {
+                margin-bottom: 24px;
+              }
+              .elegant-header-card {
+                background: var(--bg-card);
+                border-radius: 12px;
+                box-shadow: 0 2px 16px rgba(0, 0, 0, 0.04);
+                border: 1px solid var(--border);
+                overflow: hidden;
+                margin-bottom: 24px;
+              }
+              .elegant-hero {
+                padding: 32px 32px 28px;
+                background: linear-gradient(180deg, rgba(248,250,252,0.6) 0%, rgba(255,255,255,0) 100%);
+                border-bottom: 1px solid rgba(0,0,0,0.04);
+                position: relative;
+              }
+              .elegant-eyebrow {
+                font-size: 13px;
+                font-weight: 600;
+                color: #2563eb;
+                margin-bottom: 12px;
+                display: inline-block;
+                background: #eff6ff;
+                padding: 4px 10px;
+                border-radius: 6px;
+              }
+              .elegant-title {
+                font-size: 32px;
+                font-weight: 800;
+                color: var(--text-primary);
+                margin: 0 0 12px 0;
+                letter-spacing: -0.5px;
+              }
+              .elegant-desc {
+                font-size: 15px;
+                color: var(--text-secondary);
+                margin: 0;
+                max-width: 680px;
+                line-height: 1.6;
+              }
+              .elegant-meta {
+                display: flex;
+                gap: 12px;
+                margin-top: 20px;
+              }
+              .elegant-meta-badge {
+                font-size: 13px;
+                color: var(--text-secondary);
+                background: var(--bg-page);
+                padding: 4px 12px;
+                border-radius: 20px;
+                display: inline-flex;
+                align-items: center;
+              }
+              .elegant-filters {
+                padding: 24px 32px;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+                background: var(--bg-card);
+              }
+              .ef-row {
+                display: flex;
+                align-items: flex-start;
+              }
+              .ef-label {
+                flex-shrink: 0;
+                width: 48px;
+                padding-top: 4px;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-secondary);
+              }
+              .ef-options {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+              }
+              .ef-btn {
+                padding: 4px 14px;
+                font-size: 14px;
+                border-radius: 6px;
+                border: 1px solid transparent;
+                color: var(--text-primary);
+                background: transparent;
+                cursor: pointer;
+                transition: all 0.2s ease;
+              }
+              .ef-btn:hover {
+                background: rgba(0,0,0,0.04);
+              }
+              .ef-btn.active {
+                background: var(--text-primary);
+                color: #fff;
+                font-weight: 500;
+              }
+              .ef-active-tags {
+                padding: 16px 32px;
+                background: rgba(248,250,252,0.4);
+                border-top: 1px dashed rgba(0,0,0,0.06);
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: center;
+              }
+              .ef-tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 4px 10px;
+                font-size: 13px;
+                background: #fff;
+                border: 1px solid rgba(0,0,0,0.08);
+                border-radius: 6px;
+                color: var(--text-primary);
+                cursor: pointer;
+                transition: border-color 0.2s;
+              }
+              .ef-tag:hover {
+                border-color: #94a3b8;
+              }
+              .ef-tag-clear {
+                font-size: 13px;
+                color: var(--text-secondary);
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 4px 8px;
+                transition: color 0.2s;
+              }
+              .ef-tag-clear:hover {
+                color: #ef4444;
+              }
+              @media (max-width: 768px) {
+                .elegant-hero { padding: 24px 20px 20px; }
+                .elegant-title { font-size: 24px; }
+                .elegant-filters { padding: 20px; gap: 14px; }
+                .ef-row { flex-direction: column; gap: 8px; }
+                .ef-label { padding-top: 0; }
+                .ef-active-tags { padding: 16px 20px; }
+              }
+            `}</style>
+
+            <div className="elegant-header-card">
+              <div className="elegant-hero">
+                <span className="elegant-eyebrow">精选专题</span>
+                <h1 className="elegant-title">{topic.name}</h1>
+                <p className="elegant-desc">{topic.summary}</p>
+                <div className="elegant-meta">
+                  {channelName && <span className="elegant-meta-badge">{channelName}</span>}
+                  {categoryName && <span className="elegant-meta-badge">{categoryName}</span>}
+                  <span className="elegant-meta-badge">收录 {resources.length} 份</span>
+                  {filtered.length !== resources.length && (
+                    <span className="elegant-meta-badge" style={{ background: "#e0f2fe", color: "#1d4ed8" }}>
+                      筛选结果 {filtered.length} 份
+                    </span>
+                  )}
                 </div>
               </div>
-            )}
 
-            {years.length > 0 && (
-              <div className="tf-row">
-                <span className="tf-label">年份</span>
-                <div className="tf-chips">
-                  {years.map((year) => (
-                    <button
-                      key={year}
-                      className={`tf-chip${selYear === year ? " tf-chip--active" : ""}`}
-                      onClick={() => toggle(selYear, year, setYear)}
-                    >
-                      {year}
-                    </button>
-                  ))}
-                </div>
+              <div className="elegant-filters">
+                {subjects.length > 0 && (
+                  <div className="ef-row">
+                    <div className="ef-label">科目</div>
+                    <div className="ef-options">
+                      <button type="button" className={`ef-btn${!selSubject ? " active" : ""}`} onClick={() => setSubject(null)}>全部</button>
+                      {subjects.map((subject) => (
+                        <button type="button" className={`ef-btn${selSubject === subject ? " active" : ""}`} key={subject} onClick={() => toggle(selSubject, subject, setSubject)}>{subject}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {years.length > 0 && (
+                  <div className="ef-row">
+                    <div className="ef-label">年份</div>
+                    <div className="ef-options">
+                      <button type="button" className={`ef-btn${!selYear ? " active" : ""}`} onClick={() => setYear(null)}>全部</button>
+                      {years.map((year) => (
+                        <button type="button" className={`ef-btn${selYear === year ? " active" : ""}`} key={year} onClick={() => toggle(selYear, year, setYear)}>{year}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {regions.length > 0 && (
+                  <div className="ef-row">
+                    <div className="ef-label">省份</div>
+                    <div className="ef-options">
+                      <button type="button" className={`ef-btn${!selRegion ? " active" : ""}`} onClick={() => { setRegion(null); setCity(null); }}>全部</button>
+                      {regions.map((region) => (
+                        <button type="button" className={`ef-btn${selRegion === region ? " active" : ""}`} key={region} onClick={() => { setRegion(region); setCity(null); }}>{region}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {cities.length > 0 && (
+                  <div className="ef-row">
+                    <div className="ef-label">城市</div>
+                    <div className="ef-options">
+                      <button type="button" className={`ef-btn${!selCity ? " active" : ""}`} onClick={() => setCity(null)}>全部</button>
+                      {cities.map((city) => (
+                        <button type="button" className={`ef-btn${selCity === city ? " active" : ""}`} key={city} onClick={() => toggle(selCity, city, setCity)}>{city}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selRegion && cities.length === 0 && (
+                  <div className="ef-row">
+                    <div className="ef-label">城市</div>
+                    <p className="tf-hint" style={{margin:0,paddingTop:4,fontSize:14}}>当前省份下暂无可继续细分的城市数据。</p>
+                  </div>
+                )}
+                {subjects.length === 0 && years.length === 0 && regions.length === 0 && cities.length === 0 && (
+                  <div className="ef-row">
+                    <p className="tf-hint" style={{margin:0,fontSize:14}}>资源的标签暂不包含可筛选的科目、年份、地区或城市信息。</p>
+                  </div>
+                )}
               </div>
-            )}
 
-            {regions.length > 0 && (
-              <div className="tf-row">
-                <span className="tf-label">省份</span>
-                <div className="tf-chips">
-                  {regions.map((region) => (
-                    <button
-                      key={region}
-                      className={`tf-chip${selRegion === region ? " tf-chip--active" : ""}`}
-                      onClick={() => {
-                        setRegion(region);
+              {hasFilters && (
+                <div className="ef-active-tags">
+                  {selSubject && <button type="button" className="ef-tag" onClick={() => setSubject(null)}>科目：{selSubject} ✕</button>}
+                  {selYear && <button type="button" className="ef-tag" onClick={() => setYear(null)}>年份：{selYear} ✕</button>}
+                  {selRegion && (selRegion !== defaultRegion) && <button type="button" className="ef-tag" onClick={() => { setRegion(defaultRegion); setCity(null); }}>省份：{selRegion} ✕</button>}
+                  {selCity && <button type="button" className="ef-tag" onClick={() => setCity(null)}>城市：{selCity} ✕</button>}
+                  <button
+                    type="button"
+                    className="ef-tag-clear"
+                    onClick={() => {
+                        setSubject(null);
+                        setYear(null);
+                        setRegion(defaultRegion);
                         setCity(null);
-                      }}
-                    >
-                      {region}
-                    </button>
-                  ))}
+                    }}
+                  >
+                    清空筛选
+                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {cities.length > 0 && (
-              <div className="tf-row">
-                <span className="tf-label">城市</span>
-                <div className="tf-chips">
-                  {cities.map((city) => (
-                    <button
-                      key={city}
-                      className={`tf-chip${selCity === city ? " tf-chip--active" : ""}`}
-                      onClick={() => toggle(selCity, city, setCity)}
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {selRegion && cities.length === 0 && (
-              <div className="tf-row">
-                <span className="tf-label">城市</span>
-                <p className="tf-hint">当前省份下暂无可继续细分的城市数据。</p>
-              </div>
-            )}
-
-            {subjects.length === 0 && years.length === 0 && regions.length === 0 && cities.length === 0 && (
-              <p className="tf-hint">资源的标签暂不包含可筛选的科目、年份、地区或城市信息。</p>
-            )}
-          </div>
-
-          <section className="section">
+            <section className="section">
             <div className="section-head">
               <div>
                 <h2 className="section-title">全部资源</h2>
@@ -275,8 +420,10 @@ export default function ZhongkaoZhentiLayout({
               </div>
             )}
           </section>
+          </div>
         </div>
       </div>
     </>
+
   );
 }
