@@ -38,14 +38,6 @@ export function ResourceDownloadEntry({
   );
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
 
-  const entryUrl = useMemo(() => {
-    if (typeof window !== "undefined") {
-      return new URL(`/go/${resourceId}`, window.location.origin).toString();
-    }
-
-    return `/go/${resourceId}`;
-  }, [resourceId]);
-
   useEffect(() => {
     setResolvedDownloadUrl(initialDownloadUrl);
     setSearchState(initialDownloadUrl ? "idle" : "searching");
@@ -152,7 +144,7 @@ export function ResourceDownloadEntry({
 
     let active = true;
 
-    void QRCode.toDataURL(entryUrl, {
+    void QRCode.toDataURL(resolvedDownloadUrl, {
       width: 240,
       margin: 1,
       color: {
@@ -172,7 +164,7 @@ export function ResourceDownloadEntry({
     return () => {
       active = false;
     };
-  }, [entryUrl, isOpen, resolvedDownloadUrl, resourceId]);
+  }, [isOpen, resolvedDownloadUrl, resourceId]);
 
   const handleOpen = () => {
     if (resolvedDownloadUrl && shouldUseDirectJump()) {
@@ -236,7 +228,7 @@ export function ResourceDownloadEntry({
                     </div>
                   )}
                 </div>
-                <p className="download-modal__hint">扫码后会先进入本站下载中转页，再自动跳转夸克网盘。</p>
+                <p className="download-modal__hint">二维码已直接指向夸克网盘链接，建议使用手机夸克 App 扫码打开。</p>
               </>
             ) : (
               <>

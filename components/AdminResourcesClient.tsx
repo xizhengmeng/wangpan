@@ -5,10 +5,12 @@ import { useRouter } from "next/router";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import { AnalyticsPeriod, AnalyticsPeriodPoint } from "@/lib/analytics";
+import { getLinkOwnerLabel } from "@/lib/link-ownership";
 import { CategoryNode, Channel, ContentStructure, Feedback, Resource, TopicNode } from "@/lib/types";
 
 type Tab = "dashboard" | "resources" | "form" | "import" | "feedback" | "structure";
 type StructurePanel = null | "site" | "channel" | "category" | "topic";
+type LinkOwnerFilter = "all" | "own" | "external";
 
 interface RankedResource { resourceId: string; title: string; slug: string; count: number }
 
@@ -181,11 +183,13 @@ export function AdminResourcesClient({
   const [structurePanel, setStructurePanel] = useState<StructurePanel>(null);
   const router = useRouter();
   const [resources, setResources] = useState(initialResources);
+  const [resourcesLoaded, setResourcesLoaded] = useState(initialResources.length > 0);
   const [form, setForm] = useState(emptyResForm);
   const [csv, setCsv] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [linkOwnerFilter, setLinkOwnerFilter] = useState<LinkOwnerFilter>("all");
   const [titleSearch, setTitleSearch] = useState("");
   const [feedback, setFeedback] = useState(initialFeedback);
 
@@ -265,10 +269,20 @@ export function AdminResourcesClient({
   const filteredResources = useMemo(() => {
     return sortedResources.filter((r) => {
       if (statusFilter !== "all" && r.publish_status !== statusFilter) return false;
+      if (linkOwnerFilter !== "all" && (r.link_owner || "external") !== linkOwnerFilter) return false;
       if (titleSearch && !r.title.toLowerCase().includes(titleSearch.toLowerCase())) return false;
       return true;
     });
-  }, [sortedResources, statusFilter, titleSearch]);
+  }, [sortedResources, statusFilter, linkOwnerFilter, titleSearch]);
+
+  const linkOwnerCounts = useMemo(
+    () => ({
+      all: resources.length,
+      own: resources.filter((resource) => resource.link_owner === "own").length,
+      external: resources.filter((resource) => (resource.link_owner || "external") === "external").length,
+    }),
+    [resources]
+  );
 
   const channelOptions = useMemo(() => channels, [channels]);
 
@@ -280,7 +294,9 @@ export function AdminResourcesClient({
 
   const topicOptions = useMemo(
     () =>
-      topics.filter((topic) => topic.category_id === form.category_id),
+      topics
+        .filter((topic) => topic.category_id === form.category_id)
+        .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN")),
     [topics, form.category_id]
   );
 
@@ -326,7 +342,9 @@ export function AdminResourcesClient({
     const childCategories = (categoriesByParent.get(cat.id) || [])
       .filter((item) => item.channel_id === cat.channel_id)
       .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
-    const catTopics = topics.filter((t) => t.category_id === cat.id);
+    const catTopics = topics
+      .filter((t) => t.category_id === cat.id)
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
     const catCollapsed = collapsedCategories.has(cat.id);
 
     return (
@@ -380,11 +398,28 @@ export function AdminResourcesClient({
               <div className="stree-row__body">
                 <span className="stree-row__name">{topic.name}</span>
                 <span className="stree-row__slug">{topic.slug}</span>
+                <span className="stree-tag">排序 {topic.sort}</span>
                 {topic.status === "hidden" && <span className="stree-tag stree-tag--hidden">隐藏</span>}
                 {topic.featured && <span className="stree-tag stree-tag--featured">精选</span>}
                 {topic.show_on_home && <span className="stree-tag stree-tag--featured">首页</span>}
               </div>
               <div className="stree-row__actions">
+                <button
+                  type="button"
+                  className="stree-action"
+                  disabled={topicIdx === 0}
+                  onClick={() => void handleMoveTopic(topic.id, "up")}
+                >
+                  上移
+                </button>
+                <button
+                  type="button"
+                  className="stree-action"
+                  disabled={topicIdx === catTopics.length - 1}
+                  onClick={() => void handleMoveTopic(topic.id, "down")}
+                >
+                  下移
+                </button>
                 <button type="button" className="stree-action"
                   onClick={() => { setTopicForm({ id: topic.id, category_id: topic.category_id, name: topic.name, slug: topic.slug, summary: topic.summary, download_url: topic.download_url || "", sort_order: topic.sort, featured: topic.featured ?? false, show_on_home: topic.show_on_home ?? false, status: topic.status, field_schema: topic.field_schema ? JSON.stringify(topic.field_schema, null, 2) : "" }); setStructurePanel("topic"); }}>编辑</button>
                 <button type="button" className="stree-action stree-action--del"
@@ -406,7 +441,14 @@ export function AdminResourcesClient({
     const res = await fetch("/api/admin/resources");
     const data = (await res.json()) as { items: Resource[] };
     setResources(data.items);
+    setResourcesLoaded(true);
   }
+
+  useEffect(() => {
+    if (!resourcesLoaded) {
+      void refreshResources();
+    }
+  }, [resourcesLoaded]);
 
   function handleInputChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -601,6 +643,69 @@ export function AdminResourcesClient({
     await loadStructure();
   }
 
+  async function handleMoveTopic(topicId: string, direction: "up" | "down") {
+    const current = topics.find((item) => item.id === topicId);
+    if (!current) return;
+
+    const siblings = topics
+      .filter((item) => item.category_id === current.category_id)
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "zh-CN"));
+
+    const currentIndex = siblings.findIndex((item) => item.id === topicId);
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (currentIndex === -1 || targetIndex < 0 || targetIndex >= siblings.length) {
+      return;
+    }
+
+    const reordered = [...siblings];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updates = reordered.map((topic, index) => ({
+      ...topic,
+      sort: index + 1,
+    }));
+
+    setTopics((prev) =>
+      prev.map((topic) => {
+        const next = updates.find((item) => item.id === topic.id);
+        return next ? { ...topic, sort: next.sort } : topic;
+      })
+    );
+
+    const responses = await Promise.all(
+      updates.map((topic) =>
+        fetch("/api/admin/structure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "topic",
+            id: topic.id,
+            category_id: topic.category_id,
+            name: topic.name,
+            slug: topic.slug,
+            summary: topic.summary,
+            download_url: topic.download_url || "",
+            sort_order: topic.sort,
+            featured: topic.featured ?? false,
+            show_on_home: topic.show_on_home ?? false,
+            status: topic.status,
+            field_schema: topic.field_schema || undefined,
+          }),
+        })
+      )
+    );
+
+    if (responses.some((response) => !response.ok)) {
+      await loadStructure();
+      notify("err", "专题排序更新失败");
+      return;
+    }
+
+    notify("ok", "专题排序已更新");
+    await loadStructure();
+  }
+
   async function handleResolveFeedback(id: string) {
     const res = await fetch("/api/admin/feedback", {
       method: "PATCH",
@@ -613,7 +718,7 @@ export function AdminResourcesClient({
 
   const TABS: { key: Tab; label: string; icon: string; badge?: number }[] = [
     { key: "dashboard", label: "统计看板", icon: "📊" },
-    { key: "resources", label: "资源管理", icon: "📦", badge: resources.length },
+    { key: "resources", label: "资源管理", icon: "📦", badge: resourcesLoaded ? resources.length : undefined },
     { key: "form", label: form.id ? "编辑资源" : "新增资源", icon: form.id ? "✏️" : "➕" },
     { key: "import", label: "批量导入", icon: "📤" },
     { key: "structure", label: "导航与分类", icon: "🗂" },
@@ -773,6 +878,11 @@ export function AdminResourcesClient({
               <h1>资源管理</h1>
               <button type="button" className="adm-btn adm-btn--primary" onClick={() => { setForm(emptyResForm); setTab("form"); }}>+ 新增资源</button>
             </div>
+            {!resourcesLoaded && (
+              <div className="admin-panel">
+                <p className="admin-empty">正在加载资源列表…</p>
+              </div>
+            )}
             <div className="admin-filter-bar">
               <input
                 className="admin-filter-input"
@@ -787,12 +897,32 @@ export function AdminResourcesClient({
                     type="button"
                     className={`admin-filter-tab${statusFilter === s ? " admin-filter-tab--active" : ""}`}
                     onClick={() => setStatusFilter(s)}
+                    disabled={!resourcesLoaded}
                   >
                     {s === "all" ? "全部" : STATUS_LABELS[s]}
                     {" "}
                     <span className="admin-filter-tab__count">
                       {s === "all" ? resources.length : resources.filter((r) => r.publish_status === s).length}
                     </span>
+                  </button>
+                ))}
+              </div>
+              <div className="admin-filter-tabs">
+                {[
+                  { value: "all", label: "全部链接" },
+                  { value: "own", label: "我的网盘" },
+                  { value: "external", label: "外部链接" },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={`admin-filter-tab${linkOwnerFilter === item.value ? " admin-filter-tab--active" : ""}`}
+                    onClick={() => setLinkOwnerFilter(item.value as LinkOwnerFilter)}
+                    disabled={!resourcesLoaded}
+                  >
+                    {item.label}
+                    {" "}
+                    <span className="admin-filter-tab__count">{linkOwnerCounts[item.value as LinkOwnerFilter]}</span>
                   </button>
                 ))}
               </div>
@@ -815,6 +945,9 @@ export function AdminResourcesClient({
                         {STATUS_LABELS[resource.publish_status]}
                       </span>
                       <span className="admin-res-cat">{resource.category}</span>
+                      <span className={`admin-res-owner admin-res-owner--${resource.link_owner || "external"}`}>
+                        {getLinkOwnerLabel(resource.link_owner || "external")}
+                      </span>
                       <span className="admin-res-time">
                         录入 {new Date(resource.created_at || resource.updated_at).toLocaleString("zh-CN")}
                       </span>

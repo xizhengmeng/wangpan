@@ -3,8 +3,20 @@ import path from "node:path";
 
 import mysql, { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
-let pool: Pool | null = null;
-let initPromise: Promise<void> | null = null;
+type GlobalDbCache = {
+  pool?: Pool | null;
+  initPromise?: Promise<void> | null;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __wangpanDbCache__: GlobalDbCache | undefined;
+}
+
+const globalDbCache = globalThis.__wangpanDbCache__ ?? (globalThis.__wangpanDbCache__ = {});
+
+let pool: Pool | null = globalDbCache.pool ?? null;
+let initPromise: Promise<void> | null = globalDbCache.initPromise ?? null;
 
 const schemaFile = path.join(process.cwd(), "sql", "schema.sql");
 const dataDir = path.join(process.cwd(), "data");
@@ -178,7 +190,7 @@ function getPool() {
   pool = mysql.createPool({
     ...config,
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: Number.parseInt(process.env.DB_CONNECTION_LIMIT || "4", 10),
     queueLimit: 0,
     multipleStatements: true,
     charset: "utf8mb4",
@@ -186,6 +198,7 @@ function getPool() {
     dateStrings: true,
     namedPlaceholders: true,
   });
+  globalDbCache.pool = pool;
 
   return pool;
 }
@@ -505,12 +518,15 @@ export async function ensureDatabaseReady() {
       if (pool) {
         await pool.end();
         pool = null;
+        globalDbCache.pool = null;
       }
       throw error;
     } finally {
       initPromise = null;
+      globalDbCache.initPromise = null;
     }
   })();
+  globalDbCache.initPromise = initPromise;
 
   await initPromise;
 }

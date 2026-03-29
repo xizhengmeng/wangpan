@@ -117,10 +117,11 @@ export function ResourceListCompact({ items }: ResourceListCompactProps) {
         // Extract grades/editions for tags
         const tags = [];
         if (item.tags) {
-          const grades = item.tags.filter(t => ["七年级","八年级","九年级"].includes(t));
+          const cleanedTags = item.tags.filter((t) => t !== "52wei");
+          const grades = cleanedTags.filter(t => ["七年级","八年级","九年级"].includes(t));
           if (grades.length > 0) tags.push(...grades.slice(0,1));
           
-          const types = item.tags.filter(t => ["期中","期末","月考","单元测试","一课一练"].includes(t));
+          const types = cleanedTags.filter(t => ["期中","期末","月考","单元测试","一课一练"].includes(t));
           if (types.length > 0) tags.push(...types.slice(0,1));
         }
 

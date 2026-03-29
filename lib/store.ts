@@ -5,6 +5,7 @@ import { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { summarizeEvents } from "@/lib/analytics";
 import { execute, queryRows, withTransaction } from "@/lib/db";
 import { slugify } from "@/lib/format";
+import { inferResourceLinkOwner } from "@/lib/link-ownership";
 import { searchResources } from "@/lib/search";
 import {
   CategoryNode,
@@ -236,6 +237,8 @@ function mapResourceRow(
   if (itemsByResourceId?.has(row.id)) {
     resource.items = itemsByResourceId.get(row.id) || [];
   }
+
+  resource.link_owner = inferResourceLinkOwner(resource);
 
   return resource;
 }
@@ -708,6 +711,13 @@ export async function importResourcesFromCsv(
 export async function recordEvent(
   event: Omit<TrackEvent, "event_time"> & { event_time?: string }
 ) {
+  const trimField = (value: string | undefined, maxLength: number) => {
+    if (!value) return null;
+    const normalized = String(value).trim();
+    if (!normalized) return null;
+    return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+  };
+
   const normalizedEvent: TrackEvent = {
     ...event,
     event_time: event.event_time || new Date().toISOString(),
@@ -721,16 +731,16 @@ export async function recordEvent(
     [
       normalizedEvent.name,
       toSqlDateTime(normalizedEvent.event_time),
-      normalizedEvent.session_id || null,
-      normalizedEvent.anon_user_id || null,
-      normalizedEvent.query || null,
-      normalizedEvent.resource_id || null,
+      trimField(normalizedEvent.session_id, 120),
+      trimField(normalizedEvent.anon_user_id, 120),
+      trimField(normalizedEvent.query, 255),
+      trimField(normalizedEvent.resource_id, 64),
       normalizedEvent.result_rank ?? null,
       normalizedEvent.result_count ?? null,
-      normalizedEvent.from_page || null,
-      normalizedEvent.referer || null,
-      normalizedEvent.device || null,
-      normalizedEvent.ua || null,
+      trimField(normalizedEvent.from_page, 255),
+      trimField(normalizedEvent.referer, 1000),
+      trimField(normalizedEvent.device, 120),
+      trimField(normalizedEvent.ua, 1000),
     ]
   );
 

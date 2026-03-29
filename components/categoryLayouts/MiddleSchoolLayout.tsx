@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
 import { getZhongkaoApplicableRegions, getZhongkaoSubject, getZhongkaoYear, sortZhongkaoRegions } from "@/lib/zhongkao";
+import { CategoryPagination } from "./CategoryPagination";
 import type { CategoryLayoutProps } from "./types";
 
 function toRankedList(values: string[]) {
@@ -26,9 +27,13 @@ export default function MiddleSchoolLayout({
   channelName,
   slug,
   items,
+  page,
+  total,
+  totalPages,
   topics,
 }: CategoryLayoutProps) {
   const description = `${categoryName} 持续更新中考真题、练习资料与专题整理，适合按科目、年份和地区快速定位。`;
+  const path = page > 1 ? `/category/${slug}?page=${page}` : `/category/${slug}`;
   const zhongkaoTopic = topics.find((topic) => topic.slug === "zhongkaozhenti");
 
   const zhongkaoResources = zhongkaoTopic?.resources || [];
@@ -64,7 +69,7 @@ export default function MiddleSchoolLayout({
       <Seo
         title={`${categoryName} 资源合集`}
         description={description}
-        path={`/category/${slug}`}
+        path={path}
       />
 
       <div className="page-shell">
@@ -237,10 +242,13 @@ export default function MiddleSchoolLayout({
             <div className="section-head">
               <div>
                 <h2 className="section-title">全部资源</h2>
-                <p className="section-subtitle">共 {items.length} 条</p>
+                <p className="section-subtitle">
+                  共 {total} 条，当前第 {page} / {totalPages} 页
+                </p>
               </div>
             </div>
             <ResourceListCompact items={items} />
+            <CategoryPagination page={page} slug={slug} total={total} totalPages={totalPages} />
           </section>
         </div>
       </div>

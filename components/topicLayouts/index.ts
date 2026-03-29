@@ -4,6 +4,7 @@ import MiddleSchoolZoneLayout from "./MiddleSchoolZoneLayout";
 import ZhongkaoZhentiLayout from "./ZhongkaoZhentiLayout";
 import PrimarySchoolZoneLayout from "./PrimarySchoolZoneLayout";
 import HighSchoolZoneLayout from "./HighSchoolZoneLayout";
+import EbookTopicLayout from "./EbookTopicLayout";
 import type { TopicLayoutProps } from "./types";
 
 export type TopicLayoutComponent = (props: TopicLayoutProps) => JSX.Element;
@@ -18,6 +19,12 @@ const registry: Partial<Record<string, TopicLayoutComponent>> = {
   "primary-school-zone": PrimarySchoolZoneLayout,
   "high-school-zone": HighSchoolZoneLayout,
   zhongkaozhenti: ZhongkaoZhentiLayout,
+  "novel-zone": EbookTopicLayout,
+  "history-humanities-zone": EbookTopicLayout,
+  "business-management-zone": EbookTopicLayout,
+  "tech-ai-books-zone": EbookTopicLayout,
+  "education-language-zone": EbookTopicLayout,
+  "reports-docs-zone": EbookTopicLayout,
 };
 
 export function getTopicLayout(slug: string): TopicLayoutComponent {

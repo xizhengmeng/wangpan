@@ -1,4 +1,5 @@
 export type PublishStatus = "draft" | "published" | "offline";
+export type LinkOwner = "own" | "external";
 
 export interface TopicFieldSchema {
   key: string;
@@ -49,6 +50,7 @@ export interface Resource {
   created_at?: string;
   meta?: Record<string, ResourceMetaValue>;
   items?: ResourceItem[];
+  link_owner?: LinkOwner;
 }
 
 export type TrackEventName =

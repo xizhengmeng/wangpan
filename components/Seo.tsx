@@ -8,9 +8,10 @@ interface SeoProps {
   path?: string;
   image?: string;
   noindex?: boolean;
+  keywords?: string;
 }
 
-export function Seo({ title, description, path = "/", image, noindex = false }: SeoProps) {
+export function Seo({ title, description, path = "/", image, noindex = false, keywords }: SeoProps) {
   const url = absoluteUrl(path);
   const fullTitle = `${title} | ${siteConfig.shortName}`;
 
@@ -18,6 +19,7 @@ export function Seo({ title, description, path = "/", image, noindex = false }: 
     <Head>
       <title>{fullTitle}</title>
       <meta name="description" content={description} />
+      {keywords && <meta name="keywords" content={keywords} />}
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:type" content="website" />

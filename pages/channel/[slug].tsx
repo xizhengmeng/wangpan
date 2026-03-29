@@ -181,7 +181,7 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
 
         <section className="page-hero panel channel-page__hero">
           <div className="channel-page__hero-main">
-            <span className="eyebrow">教育考试频道</span>
+            <span className="eyebrow">资源频道</span>
             <h1 className="page-title">{channel.name}</h1>
             <p className="page-copy">{channel.description}</p>
             <div className="channel-page__actions">
@@ -217,7 +217,7 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
           <section className="panel channel-tabs-panel">
             <div className="section-head channel-tabs-panel__head">
               <div>
-                <h2 className="section-title">按学习阶段切换</h2>
+                <h2 className="section-title">按栏目切换</h2>
                 <p className="section-subtitle">移动端可左右滑动，先选栏目，再继续收窄到专题或资源。</p>
               </div>
             </div>
@@ -352,7 +352,7 @@ export default function ChannelPage({ channel }: ChannelPageProps) {
               ) : (
                 <section className="channel-empty">
                   <h3>这个栏目暂时没有直接资源列表</h3>
-                  <p>更适合先从上面的专题入口进入，按考试类型、年级或方向继续筛选。</p>
+                  <p>更适合先从上面的专题入口进入，按主题、方向或资料类型继续筛选。</p>
                 </section>
               )}
             </div>

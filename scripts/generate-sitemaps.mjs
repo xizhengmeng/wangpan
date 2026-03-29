@@ -108,6 +108,9 @@ const gaokaoManifest = readJsonFile(path.join(dataDir, "gaokao-zhenti-manifest.j
 const zhongkaoManifest = readJsonFile(path.join(dataDir, "zhongkao-zhenti-manifest.json"), {
   resources: [],
 });
+const examCollectionsData = readJsonFile(path.join(dataDir, "exam-collections.json"), {
+  collections: [],
+});
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const publishedResources = resources.filter((resource) => resource.publish_status === "published");
 
@@ -256,6 +259,11 @@ const urlEntries = dedupeEntries([
   ...buildExamSubjectEntries(baseUrl, "zhongkaozhenti", zhongkaoManifest.resources || []),
   ...buildExamRegionEntries(baseUrl, "zhongkaozhenti", zhongkaoManifest.resources || []),
   ...buildExamComboEntries(baseUrl, "zhongkaozhenti", zhongkaoManifest.resources || []),
+  ...["gaokaozhenti", "zhongkaozhenti"].map((slug) => ({ loc: absoluteUrl(baseUrl, `/collections/${slug}`) })),
+  ...(examCollectionsData.collections || []).map((collection) => ({
+    loc: absoluteUrl(baseUrl, `/collection/${collection.slug}`),
+    lastmod: collection.lastmod || undefined,
+  })),
 ]);
 
 ensureCleanDirectory(sitemapsDir);

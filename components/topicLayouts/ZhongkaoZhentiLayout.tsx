@@ -200,6 +200,12 @@ export default function ZhongkaoZhentiLayout({
                 display: inline-flex;
                 align-items: center;
               }
+              .elegant-meta-badge--link {
+                color: #2563eb;
+                text-decoration: none;
+                background: #eff6ff;
+                border: 1px solid rgba(37, 99, 235, 0.12);
+              }
               .elegant-filters {
                 padding: 24px 32px;
                 display: flex;
@@ -298,6 +304,9 @@ export default function ZhongkaoZhentiLayout({
                   {channelName && <span className="elegant-meta-badge">{channelName}</span>}
                   {categoryName && <span className="elegant-meta-badge">{categoryName}</span>}
                   <span className="elegant-meta-badge">收录 {resources.length} 份</span>
+                  <Link className="elegant-meta-badge elegant-meta-badge--link" href={`/collections/${topic.slug}`}>
+                    查看合集
+                  </Link>
                   {filtered.length !== resources.length && (
                     <span className="elegant-meta-badge" style={{ background: "#e0f2fe", color: "#1d4ed8" }}>
                       筛选结果 {filtered.length} 份

@@ -24,17 +24,56 @@ interface ResourcePageProps {
   } | null;
 }
 
-/** 将 resource.meta 渲染成可读的 label，无法映射的 key 做 title-case */
-const META_LABELS: Record<string, string> = {
-  year: "年份", subject: "科目", grade: "年级", region: "地区",
-  province: "省份", volume: "卷册", edition: "版本", publisher: "出版社",
-  difficulty: "难度", type: "类型", semester: "学期", course: "课程",
-  city: "城市", paper_variant: "卷型", paper_version: "卷别", content_kinds: "内容类型",
-  file_count: "文件数", item_count: "资料数", file_formats: "文件格式", has_answer: "包含答案", has_analysis: "包含解析", has_audio: "包含音频",
-  subjects: "科目覆盖", editions: "教材版本", years: "年份", 
+const META_FIELDS: Record<
+  string,
+  {
+    label: string;
+    visible?: boolean;
+    format?: (value: string | number | boolean | Array<string | number | boolean>) => string;
+  }
+> = {
+  year: { label: "年份" },
+  subject: { label: "科目" },
+  grade: { label: "年级" },
+  region: { label: "地区" },
+  province: { label: "省份" },
+  volume: { label: "卷册" },
+  edition: { label: "版本" },
+  publisher: { label: "出版社" },
+  difficulty: { label: "难度" },
+  type: { label: "类型" },
+  semester: { label: "学期" },
+  course: { label: "课程" },
+  city: { label: "城市" },
+  paper_variant: { label: "卷型" },
+  paper_version: { label: "卷别" },
+  content_kinds: { label: "内容类型" },
+  file_count: { label: "文件数" },
+  item_count: { label: "资料数" },
+  file_formats: { label: "文件格式" },
+  formats: { label: "格式" },
+  has_answer: { label: "包含答案" },
+  has_analysis: { label: "包含解析" },
+  has_audio: { label: "包含音频" },
+  subjects: { label: "科目覆盖" },
+  editions: { label: "教材版本" },
+  years: { label: "年份" },
+  source: {
+    label: "来源",
+    visible: false,
+    format: (value) => String(value),
+  },
+  source_type: { label: "来源类型", visible: false },
+  raw_title: { label: "原始标题", visible: false },
+  normalized_title: { label: "规范标题", visible: false },
+  link_owner: { label: "链接归属", visible: false },
+  inferred_topic_slug: { label: "专题映射", visible: false },
+  inferred_channel_slug: { label: "频道映射", visible: false },
+  inferred_category_slug: { label: "分类映射", visible: false },
 };
+
 function metaLabel(key: string) {
-  return META_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return META_FIELDS[key]?.label ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function formatMetaValue(value: string | number | boolean | Array<string | number | boolean>) {
@@ -53,8 +92,16 @@ function getVisibleMetaEntries(resource: Resource) {
   }
 
   return Object.entries(resource.meta)
-    .filter(([key, value]) => Boolean(value) && !key.startsWith("source_") && key !== "tags")
-    .map(([key, value]) => [key, formatMetaValue(value)] as const);
+    .filter(([key, value]) => {
+      if (!value || key === "tags" || key.startsWith("source_")) {
+        return false;
+      }
+      return META_FIELDS[key]?.visible !== false;
+    })
+    .map(([key, value]) => {
+      const formatter = META_FIELDS[key]?.format;
+      return [key, formatter ? formatter(value) : formatMetaValue(value)] as const;
+    });
 }
 
 function getResourceItemMeta(item: ResourceItem) {
@@ -206,6 +253,7 @@ function rankExamRelated(resource: Resource, items: Resource[], examSlug: "gaoka
 export default function ResourcePage({ resource, related, offline, downloadUrl, examTopic }: ResourcePageProps) {
   if (!resource) return null;
 
+  const visibleTags = resource.tags.filter((tag) => slugify(tag) !== "52wei");
   const description = resource.summary;
   const metaDisplayEntries = getVisibleMetaEntries(resource);
   const resourceItems = resource.items || [];
@@ -225,14 +273,19 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
     url: absoluteUrl(`/resource/${resource.slug}`)
   };
 
+  const seoKeywords = [...visibleTags, resource.category, "夸克网盘下载", "网盘资源"].filter(Boolean).join(",");
+  const seoDescription = description ? `${description}。该资源属于${resource.category}分类，包含标签：${visibleTags.join("、")}。` : `${resource.title}夸克网盘下载。`;
+  const title = offline ? `${resource.title} 已下线` : `${resource.title} - 免费下载`;
+
   return (
     <>
       <Seo
-        title={offline ? `${resource.title} 已下线` : resource.title}
-        description={description}
+        title={title}
+        description={seoDescription}
         path={`/resource/${resource.slug}`}
         image={resource.cover}
         noindex={offline}
+        keywords={seoKeywords}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {!offline && <TrackView name="resource_detail_view" payload={{ resource_id: resource.id }} />}
@@ -250,16 +303,15 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
             </nav>
           )}
 
-          {/* Hero — title + meta pills only, no duplicate summary */}
-          <section className="page-hero panel">
-            <span className="eyebrow">{offline ? "资源已下线" : "夸克网盘资料"}</span>
-            <h1 className="page-title">{resource.title}</h1>
-            <div className="meta-row" style={{ marginTop: 8 }}>
-              <span className="meta-pill">{resource.category}</span>
+          <section className="elegant-res-hero">
+            <span className="elegant-res-eyebrow">{offline ? "资源已下线" : "夸克网盘资料"}</span>
+            <h1 className="elegant-res-title">{resource.title}</h1>
+            <div className="elegant-res-pills">
+              <span className="elegant-res-pill">🗂️ {resource.category}</span>
               {metaDisplayEntries.slice(0, 4).map(([k, v]) => (
-                <span className="meta-pill" key={k}>{metaLabel(k)}：{v}</span>
+                <span className="elegant-res-pill" key={k}>{metaLabel(k)}：{v}</span>
               ))}
-              <span className="meta-pill">更新 {formatDate(resource.updated_at)}</span>
+              <span className="elegant-res-pill">⏱️ 更新 {formatDate(resource.updated_at)}</span>
             </div>
           </section>
 
@@ -270,7 +322,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
             <article className="resource-main panel">
 
               {/* 资源摘要 */}
-              <h2 className="resource-section-title">资源简介</h2>
+              <h2 className="elegant-res-section-title">资源简介</h2>
               <p className="resource-desc">
                 {offline
                   ? "该资源已被下线或需要重新校验。页面返回 410，利于搜索引擎清理失效内容。"
@@ -279,7 +331,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
 
               {isExamResource && examIntro && (
                 <>
-                  <h2 className="resource-section-title">资料说明</h2>
+                  <h2 className="elegant-res-section-title">资料说明</h2>
                   <div className="resource-copy-block">
                     <p>{examIntro}</p>
                     <p>
@@ -293,7 +345,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
               {/* 结构化元数据 表格 */}
               {metaDisplayEntries.length > 0 && (
                 <>
-                  <h2 className="resource-section-title">详细信息</h2>
+                  <h2 className="elegant-res-section-title">详细信息</h2>
                   <dl className="resource-info-list">
                     {metaDisplayEntries.map(([k, v]) => (
                       <div className="resource-info-row" key={k}>
@@ -321,7 +373,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
 
               {isExamResource && examScenarios.length > 0 && (
                 <>
-                  <h2 className="resource-section-title">适用场景</h2>
+                  <h2 className="elegant-res-section-title">适用场景</h2>
                   <ul className="resource-bullet-list">
                     {examScenarios.map((scenario) => (
                       <li key={scenario}>{scenario}</li>
@@ -332,7 +384,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
 
               {resourceItems.length > 0 && (
                 <>
-                  <h2 className="resource-section-title">包含内容</h2>
+                  <h2 className="elegant-res-section-title">包含内容</h2>
                   <div className="resource-items-summary">
                     当前资料包共整理 <strong>{resourceItems.length}</strong> 份内容，可先浏览清单再决定是否转存到夸克网盘。
                   </div>
@@ -358,7 +410,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
 
               {isExamResource && examHubLinks.length > 0 && (
                 <div className="resource-tags-wrap">
-                  <h2 className="resource-section-title">继续浏览</h2>
+                  <h2 className="elegant-res-section-title">继续浏览</h2>
                   <div className="tag-cloud">
                     {examHubLinks.map((item) => (
                       <Link className="tag" href={item.href} key={item.href}>
@@ -370,11 +422,11 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
               )}
 
               {/* 标签云 */}
-              {resource.tags.length > 0 && (
+              {visibleTags.length > 0 && (
                 <div className="resource-tags-wrap">
-                  <h2 className="resource-section-title">相关标签</h2>
+                  <h2 className="elegant-res-section-title">相关标签</h2>
                   <div className="tag-cloud">
-                    {resource.tags.map((tag) => (
+                    {visibleTags.map((tag) => (
                       <Link className="tag" href={`/tag/${slugify(tag)}`} key={tag}>{tag}</Link>
                     ))}
                   </div>
@@ -383,7 +435,7 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
 
               {isExamResource && examFaqs.length > 0 && (
                 <>
-                  <h2 className="resource-section-title">常见问题</h2>
+                  <h2 className="elegant-res-section-title">常见问题</h2>
                   <div className="resource-faq-list">
                     {examFaqs.map((item) => (
                       <div className="resource-faq-item" key={item.q}>
@@ -478,6 +530,75 @@ export default function ResourcePage({ resource, related, offline, downloadUrl, 
           )}
         </div>
       </div>
+      <style jsx>{`
+        .elegant-res-hero {
+          background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+          border: 1px solid rgba(0,0,0,0.06);
+          border-radius: 16px;
+          padding: 40px 32px;
+          margin-bottom: 28px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          position: relative;
+          overflow: hidden;
+        }
+        .elegant-res-hero::before {
+          content: "";
+          position: absolute;
+          top: 0; right: 0; width: 300px; height: 100%;
+          background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.05), transparent 70%);
+        }
+        .elegant-res-eyebrow {
+          color: #2563eb;
+          background: #eff6ff;
+          border-radius: 6px;
+          padding: 6px 12px;
+          font-size: 13px;
+          font-weight: 600;
+          display: inline-block;
+          margin-bottom: 16px;
+        }
+        .elegant-res-title {
+          font-size: 32px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.3;
+          margin: 0 0 16px 0;
+          letter-spacing: -0.5px;
+        }
+        .elegant-res-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .elegant-res-pill {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+          color: #475569;
+          display: inline-flex;
+          align-items: center;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .elegant-res-section-title {
+          font-size: 18px;
+          font-weight: 700;
+          color: #1e293b;
+          margin: 32px 0 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .elegant-res-section-title::before {
+          content: "";
+          display: block;
+          width: 4px;
+          height: 16px;
+          background: #3b82f6;
+          border-radius: 2px;
+        }
+      `}</style>
     </>
   );
 }

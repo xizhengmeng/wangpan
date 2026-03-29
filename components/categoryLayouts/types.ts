@@ -6,5 +6,8 @@ export interface CategoryLayoutProps {
   channelName: string;
   slug: string;
   items: Resource[];
+  page: number;
+  total: number;
+  totalPages: number;
   topics: Array<TopicNode & { resources: Resource[] }>;
 }

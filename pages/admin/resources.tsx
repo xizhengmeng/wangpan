@@ -34,7 +34,6 @@ interface DashboardPeriodData {
 }
 
 interface AdminPageProps {
-  resources: Resource[];
   overviewMetrics: Array<{ label: string; value: string }>;
   dashboardPeriods: Record<AnalyticsPeriod, DashboardPeriodData>;
   siteProfile: {
@@ -52,7 +51,6 @@ interface AdminPageProps {
 }
 
 export default function AdminPage({
-  resources,
   overviewMetrics,
   dashboardPeriods,
   siteProfile,
@@ -70,7 +68,7 @@ export default function AdminPage({
         noindex
       />
       <AdminResourcesClient
-        initialResources={resources}
+        initialResources={[]}
         overviewMetrics={overviewMetrics}
         dashboardPeriods={dashboardPeriods}
         siteProfile={siteProfile}
@@ -118,7 +116,6 @@ export const getServerSideProps: GetServerSideProps<AdminPageProps> = async (ctx
 
   return {
     props: {
-      resources,
       overviewMetrics: [
         { label: "资源总数", value: String(resources.length) },
         { label: "已发布", value: String(resources.filter((r) => r.publish_status === "published").length) },

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ResourceListCompact } from "@/components/ResourceListCompact";
 import { Seo } from "@/components/Seo";
+import { CategoryPagination } from "./CategoryPagination";
 import type { CategoryLayoutProps } from "./types";
 
 export default function DefaultCategoryLayout({
@@ -10,16 +11,20 @@ export default function DefaultCategoryLayout({
   channelName,
   slug,
   items,
+  page,
+  total,
+  totalPages,
   topics,
 }: CategoryLayoutProps) {
   const description = `${categoryName} 相关夸克资料合集，持续更新资源。`;
+  const path = page > 1 ? `/category/${slug}?page=${page}` : `/category/${slug}`;
 
   return (
     <>
       <Seo
         title={`${categoryName} 资源合集`}
         description={description}
-        path={`/category/${slug}`}
+        path={path}
       />
 
       <div className="page-shell">
@@ -74,10 +79,13 @@ export default function DefaultCategoryLayout({
             <div className="section-head">
               <div>
                 <h2 className="section-title">全部资源</h2>
-                <p className="section-subtitle">共 {items.length} 条</p>
+                <p className="section-subtitle">
+                  共 {total} 条，当前第 {page} / {totalPages} 页
+                </p>
               </div>
             </div>
             <ResourceListCompact items={items} />
+            <CategoryPagination page={page} slug={slug} total={total} totalPages={totalPages} />
           </section>
         </div>
       </div>

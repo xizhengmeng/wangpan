@@ -4,16 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run generate:sitemaps && next build",
+    "build": "npm run generate:exam-collections && npm run generate:sitemaps && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "generate:exam-collections": "node scripts/generate-exam-collections.mjs",
     "generate:sitemaps": "node scripts/generate-sitemaps.mjs",
     "init:db": "node scripts/init-db.mjs",
     "sync:data": "node scripts/sync-data.mjs",
     "import:gaokao-zhenti": "node scripts/import-gaokao-zhenti.mjs --execute",
     "import:zhongkao-zhenti": "node scripts/import-zhongkao-zhenti.mjs --execute",
-    "import:k12-groups": "node scripts/import-k12-groups.mjs"
+    "import:k12-groups": "node scripts/import-k12-groups.mjs",
+    "ensure:52wei-ebooks-structure": "node scripts/ensure-52wei-ebooks-structure.mjs --execute",
+    "import:52wei-ebooks": "node scripts/import-52wei-ebooks.mjs --execute",
+    "import:52wei-software": "node scripts/import-52wei-software.mjs --execute",
+    "enrich:52wei-software": "node scripts/enrich-52wei-software.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
